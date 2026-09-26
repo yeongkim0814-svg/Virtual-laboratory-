@@ -2,7 +2,8 @@ import * as THREE from 'three';
 import type { LabFile } from '../config/types';
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
 import { addressKey, type Cable, type PortAddress } from './cables';
-import { routeCable, type CableEnd, type CableRoute, type Circle, type RouteConfig } from './cableRoute';
+import { routeCable, type CableEnd, type CableRoute, type Circle, type Plane, type RouteConfig } from './cableRoute';
+import { FLOOR, furnitureRect, type Surfaces } from '../room/surfaces';
 
 const DEG = Math.PI / 180;
 /** 끝점이 이만큼 움직였을 때만 경로를 다시 계산(손 흔들림 때문에 매 프레임 계산하지 않게). */
@@ -23,11 +24,11 @@ export class CableLayout {
     private readonly manager: EquipmentManager,
     lab: LabFile,
     cableRadiusM: number,
+    private readonly surfaces: Surfaces,
   ) {
     this.cfg = {
       cellSizeM: lab.grid.cellSizeM,
       room: lab.room,
-      floorYM: 0,
       liftM: cableRadiusM,
       portStubM: lab.cable.portStubM,
       clearanceM: lab.cable.clearanceM,
@@ -41,7 +42,7 @@ export class CableLayout {
 
   /** 두 포트를 지금 이으면 경로가 있는가. */
   canRoute(from: PortAddress, to: PortAddress): boolean {
-    const o = this.obstacles();
+    const o = this.planes();
     const a = this.end(from);
     const b = this.end(to);
     return !!a && !!b && routeCable(a, b, o, this.cfg) !== null;
@@ -49,8 +50,10 @@ export class CableLayout {
 
   /** 경로 갱신. 빠진 케이블 목록을 돌려준다(매니저에서도 이미 뺐다). */
   update(): Cable[] {
-    const obstacles = this.obstacles();
-    const obstacleSig = obstacles.map((c) => `${r(c.xM)},${r(c.zM)},${r(c.rM)}`).join(';');
+    const obstacles = this.planes();
+    const obstacleSig = obstacles
+      .map((p) => `${p.id}:` + p.circles.map((c) => `${r(c.xM)},${r(c.zM)},${r(c.rM)}`).join(';'))
+      .join('|');
     const broken: Cable[] = [];
     const alive = new Set<string>();
     for (const c of [...this.manager.cables]) {
@@ -82,22 +85,30 @@ export class CableLayout {
     return broken;
   }
 
-  private obstacles(): Circle[] {
-    return this.manager.instances
-      .filter((i) => !i.held)
-      .map((i) => ({ xM: i.positionM[0], zM: i.positionM[2], rM: i.footprintRadiusM }));
+  /** 면마다 장애물: 그 면에 놓인 장비 원 + (바닥이면) 찬장 등 가구 사각형. 테이블은 바닥 케이블이 밑으로 지나간다. */
+  private planes(): Plane[] {
+    const cupboards = this.surfaces.furniture.filter((f) => f.type !== 'table').map(furnitureRect);
+    return this.surfaces.list.map((s) => ({
+      id: s.id,
+      yM: s.yM,
+      region: s.rect,
+      circles: this.manager.instances.filter((i) => !i.held && i.surfaceId === s.id).map(bodyOf),
+      boxes: s.id === FLOOR ? cupboards : [],
+    }));
   }
 
   private end(addr: PortAddress): CableEnd | null {
     const inst = this.manager.get(addr.deviceId);
     const p = this.manager.portWorldPosition(addr, new THREE.Vector3());
     if (!inst || !p) return null;
-    return { portM: [p.x, p.y, p.z], body: inst.held ? null : bodyOf(inst), fallbackDir: forward(inst) };
+    const loose = inst.held || inst.surfaceId === null;
+    const planeId = loose ? this.surfaces.surfaceBelow(p.x, p.y, p.z).id : inst.surfaceId!;
+    return { portM: [p.x, p.y, p.z], body: loose ? null : bodyOf(inst), fallbackDir: forward(inst), planeId };
   }
 }
 
 const r = (v: number) => Math.round(v / MOVE_EPS_M);
-const sigOf = (e: CableEnd) => `${r(e.portM[0])},${r(e.portM[1])},${r(e.portM[2])},${e.body ? 1 : 0}`;
+const sigOf = (e: CableEnd) => `${r(e.portM[0])},${r(e.portM[1])},${r(e.portM[2])},${e.body ? 1 : 0},${e.planeId}`;
 const bodyOf = (i: EquipmentInstance): Circle => ({ xM: i.positionM[0], zM: i.positionM[2], rM: i.footprintRadiusM });
 /** 장비 로컬 +x 방향(월드 수평). */
 const forward = (i: EquipmentInstance): [number, number] => {

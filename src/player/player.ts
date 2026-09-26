@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { LabFile } from '../config/types';
 import { applyLook, walkDelta, type Vec2 } from '../input/controlMath';
 import { clampToRoom } from '../room/roomLayout';
+import { furnitureRect } from '../room/surfaces';
+import { pushOutOfRect, type Rect } from '../geom/rect';
 
 const DEG = Math.PI / 180;
 
@@ -13,11 +15,13 @@ export class Player {
   private pitchRad = 0;
   /** 누적 이동 거리(손 흔들림 계산용). */
   walkedM = 0;
+  private readonly furniture: Rect[];
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
     private readonly cfg: LabFile,
   ) {
+    this.furniture = cfg.furniture.map(furnitureRect);
     const [x, , z] = cfg.player.startPositionM;
     this.xM = x;
     this.zM = z;
@@ -36,7 +40,11 @@ export class Player {
     this.pitchRad = look.pitchRad;
 
     const d = walkDelta(this.yawRad, move, this.cfg.player.walkSpeedMPerS, dtS);
-    const p = clampToRoom(this.xM + d.dxM, this.zM + d.dzM, this.cfg.room, this.cfg.player.radiusM);
+    let p = clampToRoom(this.xM + d.dxM, this.zM + d.dzM, this.cfg.room, this.cfg.player.radiusM);
+    for (const r of this.furniture) {
+      const [x, z] = pushOutOfRect(r, p.xM, p.zM, this.cfg.player.radiusM); // 가구를 통과하지 못함
+      p = clampToRoom(x, z, this.cfg.room, this.cfg.player.radiusM);
+    }
     this.walkedM += Math.hypot(p.xM - this.xM, p.zM - this.zM);
     this.xM = p.xM;
     this.zM = p.zM;

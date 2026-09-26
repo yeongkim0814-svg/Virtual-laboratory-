@@ -6,6 +6,7 @@ import {
 
 const C = 0.05; // 셀 5 cm
 const room = { widthM: 10, depthM: 10, heightM: 3 };
+const inRoom = (c: readonly [number, number]) => cellInsideRoom(c, C, room);
 
 describe('셀 ↔ 월드 (셀 중심 = k·c)', () => {
   it('worldToCell: 가장 가까운 셀', () => {
@@ -62,14 +63,14 @@ describe('checkCells', () => {
   const offsets = circleOffsets(0.1, C); // 가로 ±2셀
   it('중심 간 5셀(0.25 m): −2..2 와 3..7 → 안 겹침', () => {
     const occupied = new Set(footprintCells([0, 0], offsets).map(cellKey));
-    expect(checkCells(footprintCells([5, 0], offsets), occupied, C, room)).toEqual({ ok: true });
+    expect(checkCells(footprintCells([5, 0], offsets), occupied, inRoom)).toEqual({ ok: true });
   });
   it('중심 간 4셀(0.20 m): 2 를 함께 차지 → overlap', () => {
     const occupied = new Set(footprintCells([0, 0], offsets).map(cellKey));
-    expect(checkCells(footprintCells([4, 0], offsets), occupied, C, room)).toEqual({ ok: false, reason: 'overlap' });
+    expect(checkCells(footprintCells([4, 0], offsets), occupied, inRoom)).toEqual({ ok: false, reason: 'overlap' });
   });
   it('벽 옆: 중심 k = 98 이면 100 셀이 방 밖 → outside, 97 은 안', () => {
-    expect(checkCells(footprintCells([98, 0], offsets), new Set(), C, room)).toEqual({ ok: false, reason: 'outside' });
-    expect(checkCells(footprintCells([97, 0], offsets), new Set(), C, room).ok).toBe(true);
+    expect(checkCells(footprintCells([98, 0], offsets), new Set(), inRoom)).toEqual({ ok: false, reason: 'outside' });
+    expect(checkCells(footprintCells([97, 0], offsets), new Set(), inRoom).ok).toBe(true);
   });
 });

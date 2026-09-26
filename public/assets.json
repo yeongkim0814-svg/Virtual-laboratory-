@@ -6,7 +6,9 @@
     "test-probe": null,
     "hand-right": null,
     "hand-left": null,
-    "port-marker": null
+    "port-marker": null,
+    "table": null,
+    "cupboard": null
   },
   "placeholders": {
     "floor": {
@@ -36,6 +38,14 @@
     "port-marker": {
       "color": "#f2f2f2",
       "sizeM": [0.03, 0.03, 0.03]
+    },
+    "table": {
+      "color": "#b08a5a",
+      "sizeM": [1.6, 0.75, 0.8]
+    },
+    "cupboard": {
+      "color": "#8d6e63",
+      "sizeM": [1.2, 1.8, 0.5]
     }
   },
   "environment": {

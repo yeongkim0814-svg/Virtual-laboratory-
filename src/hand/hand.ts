@@ -27,7 +27,14 @@ type HandState =
   | { kind: 'empty' }
   | { kind: 'picking'; inst: EquipmentInstance; swingS: number; grab: Move | null }
   | { kind: 'holding'; inst: EquipmentInstance }
-  | { kind: 'placing'; inst: EquipmentInstance; swingS: number; pose: PlacementPose; release: Move | null };
+  | {
+      kind: 'placing';
+      inst: EquipmentInstance;
+      swingS: number;
+      pose: PlacementPose;
+      release: Move | null;
+      onDone?: () => void;
+    };
 
 /**
  * 1인칭 손(카메라에 붙은 뷰모델). 장비를 집고, 들고, 놓는다.
@@ -85,9 +92,9 @@ export class Hand {
   }
 
   /** 들고 있는 장비를 pose(월드)에 놓는다(휘두르기 동작 포함). */
-  place(pose: PlacementPose): void {
+  place(pose: PlacementPose, onDone?: () => void): void {
     if (this.state.kind !== 'holding') return;
-    this.state = { kind: 'placing', inst: this.state.inst, swingS: 0, pose, release: null };
+    this.state = { kind: 'placing', inst: this.state.inst, swingS: 0, pose, release: null, onDone };
   }
 
   /** 세팅을 새로 불러올 때: 손에 있던 것을 버린다(장비 객체는 매니저가 새로 만든다). */
@@ -125,7 +132,10 @@ export class Hand {
       if (!s.release && this.swingPhase(s.swingS) >= cfg.swing.grabAtPhase) s.release = this.detach(s.inst);
       if (s.release) {
         const done = this.stepMove(s.release, s.inst.object, this.worldTarget(s.pose), dtS);
-        if (done && this.swingPhase(s.swingS) >= 1) this.finishPlace(s.inst, s.pose);
+        if (done && this.swingPhase(s.swingS) >= 1) {
+          this.finishPlace(s.inst, s.pose);
+          s.onDone?.();
+        }
       }
     }
 

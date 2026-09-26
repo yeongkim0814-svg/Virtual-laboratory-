@@ -18,6 +18,9 @@ import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
 import { HoldControls } from './ui/holdControls';
 import { PlacementPreview } from './interaction/placementPreview';
+import { Surfaces } from './room/surfaces';
+import { CupboardStock } from './room/cupboards';
+import { CupboardMenu } from './ui/cupboardMenu';
 
 const MAX_DT_S = 0.1; // 탭 전환 등으로 프레임이 멈췄다 재개될 때 순간이동 방지
 
@@ -44,18 +47,22 @@ async function main(): Promise<void> {
   scene.add(sun);
 
   const assets = new AssetRegistry(assetsFile);
-  const room = await buildRoom(assets, lab.room);
+  const room = await buildRoom(assets, lab.room, lab.furniture);
+  const surfaces = new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM);
+  const cupboards = new CupboardStock(lab.furniture);
   scene.add(room);
 
   // 신호는 케이블로만 전달(장비끼리 직접 참조 없음). 케이블 목록은 매니저가 가진다.
   const bus = new SignalBus(cableRouter(() => equipment.cables));
   const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
-    grid: { cellSizeM: lab.grid.cellSizeM, room: lab.room },
+    grid: { cellSizeM: lab.grid.cellSizeM, surfaces },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
   });
-  const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM);
+  const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);
   const cableView = new CableView(scene, cableLayout.routes, assetsFile.wiring);
-  await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
+  const initial = parseSetup(defaultSetup, equipmentRegistry.definitions);
+  await equipment.load(initial);
+  cupboards.load(initial.cupboards);
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
   scene.add(camera); // 손(뷰모델)이 카메라의 자식이므로 카메라도 씬에 넣는다
@@ -64,12 +71,14 @@ async function main(): Promise<void> {
   const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
   const holdControls = new HoldControls(hand);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
+  const cupboardMenu = new CupboardMenu((type) => equipmentRegistry.definitions.get(type)?.label ?? type);
   const interaction = new Interaction(
-    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale, cableLayout,
+    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
+    cableLayout, cupboards, (id, onPick) => cupboardMenu.open(cupboards.items(id), onPick),
   );
 
   const panel = new EquipmentPanel(equipment, {
-    onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems(), equipment.cables)),
+    onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems(), equipment.cables, interaction.stockForSave())),
     onLoadFile: (file) => {
       file
         .text()
@@ -77,7 +86,8 @@ async function main(): Promise<void> {
           const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions);
           await equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
           hand.reset();
-          return equipment.load(setup);
+          await equipment.load(setup);
+          cupboards.load(setup.cupboards);
         })
         .then(() => panel.refresh())
         .catch((err: unknown) => alert(`불러오기 실패: ${String(err)}`));

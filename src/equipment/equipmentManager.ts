@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/assetRegistry';
-import type { RoomSize } from '../config/types';
+import type { Vec3 } from '../config/types';
+import type { Surfaces } from '../room/surfaces';
 import {
   cellKey, cellToWorld, checkCells, circleOffsets, footprintCells, worldToCell, type Cell,
 } from '../grid/grid';
@@ -28,11 +29,13 @@ export interface EquipmentInstance extends SetupItem {
   footprintOffsets: Cell[];
   /** 모델이 내접하는 밑면 원의 반지름. */
   footprintRadiusM: number;
+  /** 놓인 면(바닥·테이블 id). 찬장에서 막 꺼내 옮기는 중이면 null. */
+  surfaceId: string | null;
 }
 
 export interface GridConfig {
   cellSizeM: number;
-  room: RoomSize;
+  surfaces: Surfaces;
 }
 
 export interface ManagerOptions {
@@ -94,28 +97,7 @@ export class EquipmentManager {
     this.group.clear();
     this.instances.length = 0;
     this.pending = [];
-    for (const { item, def, offsets, radiusM } of placed) {
-      const object = await this.assets.create(def.asset);
-      object.position.set(...item.positionM);
-      object.rotation.y = item.rotationYDeg * DEG;
-      object.userData.equipmentId = item.id;
-      const portMarkers = await this.addPortMarkers(object, item.id, def);
-      this.group.add(object);
-      const readouts: Record<string, number | null> = {};
-      for (const r of def.readouts) readouts[r.key] = null;
-      this.instances.push({
-        ...item,
-        params: { ...item.params },
-        def,
-        behavior: this.registry.behaviors.get(item.type)!.create(),
-        readouts,
-        object,
-        portMarkers,
-        held: false,
-        footprintOffsets: offsets,
-        footprintRadiusM: radiusM,
-      });
-    }
+    for (const { item, def, surfaceId } of placed) await this.addInstance(item, def, surfaceId);
     this.cables = setup.cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } }));
   }
 
@@ -123,26 +105,31 @@ export class EquipmentManager {
    * 세팅을 격자에 맞춰 검사한다(상태는 바꾸지 않음). 위치는 가장 가까운 셀 중심으로 맞춘 값을 돌려준다.
    * 밑넓이가 방 밖에 걸치거나 장비끼리 셀이 겹치면 오류.
    */
-  async validate(setup: SetupFile): Promise<{ item: SetupItem; def: EquipmentDefinition; offsets: Cell[]; radiusM: number }[]> {
-    const { cellSizeM, room } = this.grid;
-    const occupied = new Set<string>();
-    const out: { item: SetupItem; def: EquipmentDefinition; offsets: Cell[]; radiusM: number }[] = [];
+  async validate(setup: SetupFile): Promise<{ item: SetupItem; def: EquipmentDefinition; surfaceId: string }[]> {
+    const { cellSizeM, surfaces } = this.grid;
+    const occupied = new Map<string, Set<string>>();
+    const out: { item: SetupItem; def: EquipmentDefinition; surfaceId: string }[] = [];
     for (const item of setup.equipment) {
       const def = this.registry.definitions.get(item.type)!;
-      const { offsets, radiusM } = await this.footprintFor(def);
-      const cell = worldToCell(item.positionM[0], item.positionM[2], cellSizeM);
+      const { offsets } = await this.footprintFor(def);
+      const [px, py, pz] = item.positionM;
+      const surfaceId = surfaces.surfaceAt(px, py, pz);
+      if (!surfaceId) throw new Error(`세팅: ${item.id} 이(가) 놓일 면(바닥·테이블 윗면)이 없음`);
+      const cell = worldToCell(px, pz, cellSizeM);
       const cells = footprintCells(cell, offsets);
-      const check = checkCells(cells, occupied, cellSizeM, room);
+      const occ = occupied.get(surfaceId) ?? new Set<string>();
+      occupied.set(surfaceId, occ);
+      const check = checkCells(cells, occ, (c) => surfaces.cellAllowed(surfaceId, c));
       if (!check.ok) {
-        throw new Error(`세팅: ${item.id} ${check.reason === 'outside' ? '이(가) 방 밖에 걸침' : '이(가) 다른 장비와 겹침'}`);
+        throw new Error(`세팅: ${item.id} ${check.reason === 'outside' ? '이(가) 놓인 면 밖에 걸침' : '이(가) 다른 장비와 겹침'}`);
       }
-      for (const c of cells) occupied.add(cellKey(c));
+      for (const c of cells) occ.add(cellKey(c));
       const [x, z] = cellToWorld(cell, cellSizeM);
+      const y = surfaces.get(surfaceId)!.yM;
       out.push({
-        item: { ...item, positionM: [x, item.positionM[1], z], rotationYDeg: normalizeDeg(item.rotationYDeg) },
+        item: { ...item, positionM: [x, y, z], rotationYDeg: normalizeDeg(item.rotationYDeg) },
         def,
-        offsets,
-        radiusM,
+        surfaceId,
       });
     }
     return out;
@@ -173,13 +160,36 @@ export class EquipmentManager {
     if (!inst) throw new Error(`장비 없음: ${id}`);
     inst.positionM = [...positionM];
     inst.rotationYDeg = normalizeDeg(rotationYDeg);
+    inst.surfaceId = this.grid.surfaces.surfaceAt(...inst.positionM) ?? null;
   }
 
-  /** 놓여 있는(들리지 않은) 장비가 차지한 셀들. exceptId 장비는 제외. */
-  occupiedCells(exceptId?: string): Set<string> {
+  /**
+   * 새 장비를 만든다(찬장에서 꺼낼 때). 아직 어느 면에도 놓이지 않은 상태(surfaceId = null)로,
+   * 호출자가 곧바로 손에 쥐어 준다.
+   */
+  async spawn(type: string, positionM: Vec3, rotationYDeg: number): Promise<EquipmentInstance> {
+    const def = this.registry.definitions.get(type);
+    if (!def) throw new Error(`알 수 없는 장비 종류: ${type}`);
+    let n = 1;
+    while (this.get(`${type}-${n}`)) n++;
+    const params = Object.fromEntries(def.params.map((p) => [p.key, p.default]));
+    return this.addInstance({ id: `${type}-${n}`, type, positionM: [...positionM], rotationYDeg, params }, def, null);
+  }
+
+  /** 장비를 없앤다(찬장에 넣을 때). 꽂혀 있던 케이블도 뽑는다. */
+  remove(id: string): void {
+    const inst = this.get(id);
+    if (!inst) return;
+    for (const p of inst.def.ports) this.disconnect({ deviceId: id, portId: p.id });
+    inst.object.removeFromParent();
+    this.instances.splice(this.instances.indexOf(inst), 1);
+  }
+
+  /** 이 면에 놓여 있는(들리지 않은) 장비가 차지한 셀들. exceptId 장비는 제외. */
+  occupiedCells(surfaceId: string, exceptId?: string): Set<string> {
     const out = new Set<string>();
     for (const i of this.instances) {
-      if (i.held || i.id === exceptId) continue;
+      if (i.held || i.id === exceptId || i.surfaceId !== surfaceId) continue;
       const center = worldToCell(i.positionM[0], i.positionM[2], this.grid.cellSizeM);
       for (const c of footprintCells(center, i.footprintOffsets)) out.add(cellKey(c));
     }
@@ -219,10 +229,10 @@ export class EquipmentManager {
 
   /**
    * 현재 상태를 세팅 항목으로 (저장용).
-   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다.
+   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다. 찬장에서 막 꺼낸 장비(면 없음)는 빠진다.
    */
   toSetupItems(): SetupItem[] {
-    return this.instances.map(({ id, type, positionM, rotationYDeg, params }) => ({
+    return this.instances.filter((i) => i.surfaceId !== null).map(({ id, type, positionM, rotationYDeg, params }) => ({
       id, type, positionM, rotationYDeg, params,
     }));
   }
@@ -258,6 +268,33 @@ export class EquipmentManager {
   }
 
   // ── 내부 ──
+
+  private async addInstance(item: SetupItem, def: EquipmentDefinition, surfaceId: string | null): Promise<EquipmentInstance> {
+    const { offsets, radiusM } = await this.footprintFor(def);
+    const object = await this.assets.create(def.asset);
+    object.position.set(...item.positionM);
+    object.rotation.y = item.rotationYDeg * DEG;
+    object.userData.equipmentId = item.id;
+    const portMarkers = await this.addPortMarkers(object, item.id, def);
+    this.group.add(object);
+    const readouts: Record<string, number | null> = {};
+    for (const r of def.readouts) readouts[r.key] = null;
+    const inst: EquipmentInstance = {
+      ...item,
+      params: { ...item.params },
+      def,
+      behavior: this.registry.behaviors.get(item.type)!.create(),
+      readouts,
+      object,
+      portMarkers,
+      held: false,
+      footprintOffsets: offsets,
+      footprintRadiusM: radiusM,
+      surfaceId,
+    };
+    this.instances.push(inst);
+    return inst;
+  }
 
   private portDef = (addr: PortAddress): PortDef | undefined =>
     portLookup((id) => this.get(id)?.type, this.registry.definitions)(addr);

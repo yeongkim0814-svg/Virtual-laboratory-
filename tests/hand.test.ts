@@ -1,6 +1,7 @@
 // 손으로 집기·들기·놓기 흐름 테스트 (상태·자세, 물리 규칙 아님).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { Surfaces } from '../src/room/surfaces';
 import { createPlaceholderBox } from '../src/assets/placeholder';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
@@ -27,7 +28,7 @@ async function setup() {
   const camera = new THREE.PerspectiveCamera();
   scene.add(camera);
   const m: EquipmentManager = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(cableRouter(() => m.cables)), {
-    grid: { cellSizeM: 0.05, room: { widthM: 10, depthM: 10, heightM: 3 } },
+    grid: { cellSizeM: 0.05, surfaces: new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05) },
     portHitRadiusM: 0,
   });
   await m.load(parseSetup({

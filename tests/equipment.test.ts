@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { Surfaces } from '../src/room/surfaces';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
 import { parseSetup } from '../src/equipment/setup';
@@ -13,7 +14,7 @@ import { cableRouter, type Cable } from '../src/signal/cables';
 import { createPlaceholderBox } from '../src/assets/placeholder';
 
 const registry = loadEquipmentRegistry();
-const GRID = { cellSizeM: 0.05, room: { widthM: 10, depthM: 10, heightM: 3 } };
+const GRID = { cellSizeM: 0.05, surfaces: new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05) };
 const boxAssets = {
   create: async (name: string) =>
     createPlaceholderBox(name === 'port-marker' ? [0.03, 0.03, 0.03] : [0.3, 0.2, 0.2], '#000000'),
@@ -143,10 +144,10 @@ describe('장비 간 신호 전달·배치 (케이블, 격자)', () => {
   it('밑넓이는 모델이 내접하는 원(61셀), 포트 표시는 반지름 계산에 안 들어간다', async () => {
     const { m } = await make();
     expect(m.get('s')!.footprintOffsets).toHaveLength(61);
-    expect(m.occupiedCells().size).toBe(122);
-    expect(m.occupiedCells('s').size).toBe(61);
+    expect(m.occupiedCells('floor').size).toBe(122);
+    expect(m.occupiedCells('floor', 's').size).toBe(61);
     m.setHeld('p', true);
-    expect(m.occupiedCells().size).toBe(61);
+    expect(m.occupiedCells('floor').size).toBe(61);
   });
   it('불러올 때 위치를 가장 가까운 셀 중심으로 맞춘다: (−0.31, 0, 1.012) → (−0.3, 0, 1)', async () => {
     const m = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => []), opts);
@@ -172,7 +173,7 @@ describe('장비 간 신호 전달·배치 (케이블, 격자)', () => {
     const m = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => []), opts);
     const at = (x: number) => parseSetup({ version: 2, equipment: [{ id: 'w', type: 'test-source', positionM: [x, 0, 0] }] }, registry.definitions);
     await expect(m.validate(at(4.75))).resolves.toHaveLength(1);
-    await expect(m.validate(at(4.8))).rejects.toThrow('방 밖');
+    await expect(m.validate(at(4.8))).rejects.toThrow('면 밖');
   });
   it('setRotation: 놓인 장비만, −180..180 으로 정규화', async () => {
     const { m } = await make();
@@ -188,3 +189,47 @@ describe('장비 간 신호 전달·배치 (케이블, 격자)', () => {
     expect(m.toSetupItems()[0]).toEqual({ id: 's', type: 'test-source', positionM: [-0.3, 0, 1], rotationYDeg: 0, params: { voltageV: 9 } });
   });
 });
+
+describe('테이블 위 배치·찬장에서 꺼내기/넣기', () => {
+  const table = { id: 't', type: 'table' as const, positionM: [0, 0, 1] as [number, number, number], rotationYDeg: 0, sizeM: [1.6, 0.75, 0.8] as [number, number, number] };
+  const surfaces = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [table], 0.05);
+  const newM = () => {
+    const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
+      grid: { cellSizeM: 0.05, surfaces }, portHitRadiusM: 0,
+    });
+    return m;
+  };
+  const at = (x: number, y: number, z = 1) => parseSetup({ version: 2, equipment: [{ id: 'a', type: 'test-source', positionM: [x, y, z] }] }, registry.definitions);
+
+  it('테이블 윗면(높이 0.75)에 놓인다: 면 = 테이블', async () => {
+    const m = newM();
+    await m.load(at(0.3, 0.75));
+    expect(m.get('a')!.surfaceId).toBe('t');
+    expect(m.occupiedCells('t').size).toBe(61);
+    expect(m.occupiedCells('floor').size).toBe(0);
+  });
+  it('테이블 가장자리: 중심 셀 k 의 +4셀 윗변 (k+4)·0.05 + 0.025 ≤ 0.8 → k ≤ 11 → 0.55 는 가능, 0.6 은 걸침', async () => {
+    await expect(newM().validate(at(0.55, 0.75))).resolves.toHaveLength(1);
+    await expect(newM().validate(at(0.6, 0.75))).rejects.toThrow('면 밖');
+  });
+  it('테이블 밑 바닥에는 못 놓는다 / 놓일 면이 없는 높이는 오류', async () => {
+    await expect(newM().validate(at(0, 0))).rejects.toThrow('면 밖');
+    await expect(newM().validate(at(3, 0.4))).rejects.toThrow('놓일 면');
+  });
+  it('spawn: 새 id, 기본 params, 아직 면 없음(저장에서 빠짐) / remove: 케이블도 뽑힘', async () => {
+    const m = newM();
+    await m.load(parseSetup({ version: 2, equipment: [
+      { id: 'test-source-1', type: 'test-source', positionM: [-0.3, 0.75, 1] },
+      { id: 'p', type: 'test-probe', positionM: [0.3, 0.75, 1] },
+    ], cables: [{ from: { deviceId: 'test-source-1', portId: 'out' }, to: { deviceId: 'p', portId: 'in' } }] }, registry.definitions));
+    const s = await m.spawn('test-source', [-2, 0.9, 1], 90);
+    expect(s.id).toBe('test-source-2');
+    expect(s.params.voltageV).toBe(5);
+    expect(s.surfaceId).toBeNull();
+    expect(m.toSetupItems().map((i) => i.id)).toEqual(['test-source-1', 'p']);
+    m.remove('test-source-1');
+    expect(m.cables).toHaveLength(0);
+    expect(m.instances.map((i) => i.id)).toEqual(['p', 'test-source-2']);
+  });
+});
+

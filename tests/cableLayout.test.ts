@@ -1,6 +1,7 @@
 // 케이블 배치(경로·끊어짐) 통합 테스트 (배치 규칙, 물리 규칙 아님).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { Surfaces } from '../src/room/surfaces';
 import { createPlaceholderBox } from '../src/assets/placeholder';
 import type { LabFile } from '../src/config/types';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
@@ -25,7 +26,7 @@ const lab = {
 async function make(equipment: object[]) {
   const scene = new THREE.Scene();
   const m: EquipmentManager = new EquipmentManager(scene, registry, assets, new SignalBus(cableRouter(() => m.cables)), {
-    grid: { cellSizeM: 0.05, room: lab.room },
+    grid: { cellSizeM: 0.05, surfaces: new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05) },
     portHitRadiusM: 0,
   });
   await m.load(parseSetup({
@@ -34,7 +35,7 @@ async function make(equipment: object[]) {
     cables: [{ from: { deviceId: 's', portId: 'out' }, to: { deviceId: 'p', portId: 'in' } }],
   }, registry.definitions));
   scene.updateMatrixWorld(true);
-  return { m, scene, layout: new CableLayout(m, lab, 0) };
+  return { m, scene, layout: new CableLayout(m, lab, 0, new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05)) };
 }
 const src = (x: number, z = 1) => ({ id: 's', type: 'test-source', positionM: [x, 0, z] });
 const probe = (x: number, z = 1) => ({ id: 'p', type: 'test-probe', positionM: [x, 0, z] });

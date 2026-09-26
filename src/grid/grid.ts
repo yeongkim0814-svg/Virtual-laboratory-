@@ -56,14 +56,15 @@ export function cellInsideRoom(cell: Cell, cellSizeM: number, room: RoomSize): b
 
 export type PlaceCheck = { ok: true } | { ok: false; reason: 'outside' | 'overlap' };
 
-/** 이 셀들에 놓을 수 있는가: 모두 방 안이고, 이미 차지된 셀과 하나도 겹치지 않아야 한다. */
+/**
+ * 이 셀들에 놓을 수 있는가: 모두 허용된 셀(면 안)이고, 이미 차지된 셀과 하나도 겹치지 않아야 한다.
+ */
 export function checkCells(
   cells: readonly Cell[],
   occupied: ReadonlySet<string>,
-  cellSizeM: number,
-  room: RoomSize,
+  allowed: (cell: Cell) => boolean,
 ): PlaceCheck {
-  if (!cells.every((c) => cellInsideRoom(c, cellSizeM, room))) return { ok: false, reason: 'outside' };
+  if (!cells.every(allowed)) return { ok: false, reason: 'outside' };
   if (cells.some((c) => occupied.has(cellKey(c)))) return { ok: false, reason: 'overlap' };
   return { ok: true };
 }

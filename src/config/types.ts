@@ -58,8 +58,24 @@ export interface RoomSize {
   heightM: number;
 }
 
+/**
+ * 가구(방 구성, 고정). sizeM = [폭 x, 높이 y, 깊이 z], 원점 = 바닥 중앙.
+ * 모양은 assets.json 의 type 이름 에셋(없으면 이 크기의 상자). 모델을 바꿔도 sizeM 이
+ * 기능(테이블 윗면 높이·넓이, 찬장 자리)을 정하므로 모델과 크기를 맞춰야 한다.
+ */
+export interface FurnitureDef {
+  id: string;
+  type: 'table' | 'cupboard';
+  positionM: Vec3;
+  rotationYDeg: number;
+  sizeM: Vec3;
+  /** 찬장: 처음 들어 있는 장비 종류 → 개수. */
+  stock?: Record<string, number>;
+}
+
 export interface LabFile {
   room: RoomSize;
+  furniture: FurnitureDef[];
   /** 장비 배치 격자. 셀 중심 = (k·cellSizeM), 방 중심이 셀 (0,0) 중심. */
   grid: { cellSizeM: number };
   /**

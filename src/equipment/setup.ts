@@ -19,6 +19,8 @@ export interface SetupFile {
   version: number;
   equipment: SetupItem[];
   cables: Cable[];
+  /** 찬장 재고(찬장 id → 종류 → 개수). 없으면 lab.json 의 처음 재고. */
+  cupboards?: Record<string, Record<string, number>>;
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -36,7 +38,7 @@ export function parseSetup(
   definitions: ReadonlyMap<string, EquipmentDefinition>,
 ): SetupFile {
   if (typeof raw !== 'object' || raw === null) throw new Error('세팅: 객체가 아님');
-  const r = raw as { version?: unknown; equipment?: unknown; cables?: unknown };
+  const r = raw as { version?: unknown; equipment?: unknown; cables?: unknown; cupboards?: unknown };
   if (r.version !== 1 && r.version !== SETUP_VERSION) throw new Error(`세팅: 지원하지 않는 version ${String(r.version)}`);
   if (!Array.isArray(r.equipment)) throw new Error('세팅: equipment 배열이 없음');
 
@@ -81,11 +83,30 @@ export function parseSetup(
     cables.push(check.cable);
   });
 
-  return { version: SETUP_VERSION, equipment, cables };
+  let cupboards: Record<string, Record<string, number>> | undefined;
+  if (r.cupboards !== undefined) {
+    if (typeof r.cupboards !== 'object' || r.cupboards === null) throw new Error('세팅: cupboards 는 객체');
+    cupboards = {};
+    for (const [id, stock] of Object.entries(r.cupboards as Record<string, unknown>)) {
+      if (typeof stock !== 'object' || stock === null) throw new Error(`세팅 cupboards.${id}: 객체가 아님`);
+      cupboards[id] = {};
+      for (const [type, n] of Object.entries(stock as Record<string, unknown>)) {
+        if (!definitions.has(type)) throw new Error(`세팅 cupboards.${id}: 알 수 없는 장비 종류 ${type}`);
+        if (!Number.isInteger(n) || (n as number) < 0) throw new Error(`세팅 cupboards.${id}.${type}: 0 이상 정수`);
+        cupboards[id][type] = n as number;
+      }
+    }
+  }
+
+  return { version: SETUP_VERSION, equipment, cables, ...(cupboards ? { cupboards } : {}) };
 }
 
 /** 세팅 → JSON 문자열 (사람이 읽기 쉽게 들여쓰기). */
-export function serializeSetup(equipment: readonly SetupItem[], cables: readonly Cable[] = []): string {
+export function serializeSetup(
+  equipment: readonly SetupItem[],
+  cables: readonly Cable[] = [],
+  cupboards?: Record<string, Record<string, number>>,
+): string {
   const file: SetupFile = {
     version: SETUP_VERSION,
     equipment: equipment.map((e) => ({
@@ -96,6 +117,7 @@ export function serializeSetup(equipment: readonly SetupItem[], cables: readonly
       params: { ...e.params },
     })),
     cables: cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } })),
+    ...(cupboards ? { cupboards } : {}),
   };
   return JSON.stringify(file, null, 2);
 }
