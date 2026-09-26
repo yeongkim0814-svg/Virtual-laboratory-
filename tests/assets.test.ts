@@ -17,13 +17,19 @@ describe('assets.json', () => {
       expect(v === null || typeof v === 'string', name).toBe(true);
     }
   });
-  it('모든 에셋은 placeholder 외형(색, 두께)을 가진다', () => {
+  it('모든 에셋은 placeholder 외형(색 + 두께 또는 고정 크기)을 가진다', () => {
     for (const name of Object.keys(assetsFile.assets)) {
       const s = assetsFile.placeholders[name];
       expect(s, name).toBeDefined();
       expect(typeof s.color, name).toBe('string');
-      expect(s.thicknessM, name).toBeGreaterThan(0);
+      const hasThickness = typeof s.thicknessM === 'number' && s.thicknessM > 0;
+      const hasSize = Array.isArray(s.sizeM) && s.sizeM.length === 3 && s.sizeM.every((v) => v > 0);
+      expect(hasThickness || hasSize, name).toBe(true);
     }
+  });
+  it('방 에셋(floor, wall)은 두께를 가진다', () => {
+    expect(assetsFile.placeholders.floor.thicknessM).toBeGreaterThan(0);
+    expect(assetsFile.placeholders.wall.thicknessM).toBeGreaterThan(0);
   });
 });
 

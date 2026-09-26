@@ -63,5 +63,18 @@
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
 - `src/input/` — controlMath(순수 함수), touchControls(Touch Events, 멀티터치)
 - `src/player/` — 1인칭 카메라
+- `src/signal/` — channels(채널 목록·Signal 타입), signalBus(포트 위치·채널 기반 라우팅, 채널별 Router 교체 가능)
+- `src/equipment/` — registry(devices/ 자동 수집), equipmentManager(프레임 갱신, 1프레임 지연 전달), setup(세팅 JSON 저장/불러오기), ports(로컬→월드)
+- `src/ui/equipmentPanel.ts` — 장비 목록, params 슬라이더 자동 생성, readouts 표시, 저장/불러오기
+- `public/setups/default.json` — 시작 시 불러오는 세팅
+
+### 새 장비 추가 방법 (기존 코드 수정 없음)
+1. `src/equipment/devices/<type>/definition.json` — type(=폴더 이름), label, asset, channels, ports, params, readouts
+2. `src/equipment/devices/<type>/behavior.ts` — `export default { type, create: () => ({ update(ctx) {…} }) }`
+   - ctx.inputs[포트id] 로 받고, ctx.emit(포트id, 값) 으로 내보내고, ctx.setReadout 으로 표시
+3. `public/assets.json` — assets 에 `"<asset>": null`, placeholders 에 `{ color, sizeM }`
+4. 세팅 JSON(`public/setups/*.json`)에 배치
+- 포트 연결: 같은 채널의 out·in 포트가 lab.json `signal.contactToleranceM` 이내면 연결(접촉 라우터)
+- test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 명령: `npm run dev` / `npm test` / `npm run build`
 - 배포: main push → Actions 테스트·빌드 → Pages (https://yeongkim0814-svg.github.io/Virtual-laboratory-/)

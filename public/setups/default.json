@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "equipment": [
+    { "id": "source-1", "type": "test-source", "positionM": [-0.15, 0, 1], "rotationYDeg": 0, "params": { "voltageV": 5 } },
+    { "id": "probe-1", "type": "test-probe", "positionM": [0.15, 0, 1], "rotationYDeg": 0, "params": {} }
+  ]
+}

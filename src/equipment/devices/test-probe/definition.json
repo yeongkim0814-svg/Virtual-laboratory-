@@ -1,0 +1,13 @@
+{
+  "type": "test-probe",
+  "label": "테스트 수신기 (채널 확인용)",
+  "asset": "test-probe",
+  "channels": ["Electric"],
+  "ports": [
+    { "id": "in", "channel": "Electric", "direction": "in", "positionM": [-0.15, 0.1, 0] }
+  ],
+  "params": [],
+  "readouts": [
+    { "key": "voltageV", "label": "받은 값", "unit": "V" }
+  ]
+}

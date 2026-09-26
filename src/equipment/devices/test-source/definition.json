@@ -1,0 +1,13 @@
+{
+  "type": "test-source",
+  "label": "테스트 신호원 (채널 확인용)",
+  "asset": "test-source",
+  "channels": ["Electric"],
+  "ports": [
+    { "id": "out", "channel": "Electric", "direction": "out", "positionM": [0.15, 0.1, 0] }
+  ],
+  "params": [
+    { "key": "voltageV", "label": "출력 값", "unit": "V", "min": 0, "max": 12, "step": 0.1, "default": 5 }
+  ],
+  "readouts": []
+}

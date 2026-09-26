@@ -1,11 +1,35 @@
 {
   "assets": {
     "floor": null,
-    "wall": null
+    "wall": null,
+    "test-source": null,
+    "test-probe": null
   },
   "placeholders": {
-    "floor": { "color": "#9aa0a6", "thicknessM": 0.05 },
-    "wall": { "color": "#c9ccd1", "thicknessM": 0.1 }
+    "floor": {
+      "color": "#9aa0a6",
+      "thicknessM": 0.05
+    },
+    "wall": {
+      "color": "#c9ccd1",
+      "thicknessM": 0.1
+    },
+    "test-source": {
+      "color": "#4a7bd1",
+      "sizeM": [
+        0.3,
+        0.2,
+        0.2
+      ]
+    },
+    "test-probe": {
+      "color": "#d19a4a",
+      "sizeM": [
+        0.3,
+        0.2,
+        0.2
+      ]
+    }
   },
   "environment": {
     "backgroundColor": "#1e2126",
@@ -13,6 +37,10 @@
     "ambientLightIntensity": 0.6,
     "sunLightColor": "#ffffff",
     "sunLightIntensity": 1.2,
-    "sunLightDirection": [0.4, 1.0, 0.3]
+    "sunLightDirection": [
+      0.4,
+      1.0,
+      0.3
+    ]
   }
 }

@@ -5,8 +5,10 @@ export type Vec3 = [number, number, number];
 
 export interface PlaceholderStyle {
   color: string;
-  /** 판 형태(바닥·벽) placeholder 의 두께. */
-  thicknessM: number;
+  /** 판 형태(바닥·벽) placeholder 의 두께. 크기는 방 크기에서 정해진다. */
+  thicknessM?: number;
+  /** 고정 크기 placeholder(장비 등)의 [x, y, z]. */
+  sizeM?: Vec3;
 }
 
 export interface EnvironmentSpec {
@@ -34,6 +36,10 @@ export interface RoomSize {
 
 export interface LabFile {
   room: RoomSize;
+  signal: {
+    /** 출력·입력 포트가 이 거리 이하면 연결된 것으로 본다. */
+    contactToleranceM: number;
+  };
   player: {
     startPositionM: Vec3;
     startYawDeg: number;

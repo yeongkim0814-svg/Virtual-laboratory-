@@ -15,9 +15,10 @@ export class AssetRegistry {
 
   /**
    * @param placeholderSizeM model 이 null 일 때 만들 상자 크기 [x, y, z].
+   *   생략하면 assets.json placeholders 의 sizeM 을 쓴다.
    *   모델이 있으면 무시된다(모델은 1단위=1m 규약대로 제작).
    */
-  async create(name: string, placeholderSizeM: [number, number, number]): Promise<THREE.Object3D> {
+  async create(name: string, placeholderSizeM?: [number, number, number]): Promise<THREE.Object3D> {
     if (!(name in this.file.assets)) throw new Error(`assets.json 에 없는 에셋: ${name}`);
     const modelPath = this.file.assets[name];
     if (modelPath === null) return this.placeholder(name, placeholderSizeM);
@@ -38,11 +39,16 @@ export class AssetRegistry {
 
   /** placeholder 두께(판 형태 에셋용). */
   thicknessM(name: string): number {
-    return this.style(name).thicknessM;
+    const t = this.style(name).thicknessM;
+    if (t === undefined) throw new Error(`assets.json placeholders.${name}.thicknessM 없음`);
+    return t;
   }
 
-  private placeholder(name: string, sizeM: [number, number, number]): THREE.Object3D {
-    return createPlaceholderBox(sizeM, this.style(name).color);
+  private placeholder(name: string, sizeM?: [number, number, number]): THREE.Object3D {
+    const style = this.style(name);
+    const size = sizeM ?? style.sizeM;
+    if (!size) throw new Error(`assets.json placeholders.${name}.sizeM 없음`);
+    return createPlaceholderBox(size, style.color);
   }
 
   private style(name: string) {
