@@ -5,7 +5,7 @@
   "hold": { "hands": 1, "grips": [[0, 0.2, 0]] },
   "channels": ["Light"],
   "ports": [
-    { "id": "face", "channel": "Light", "direction": "in", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1], "faceSizeM": [0.2, 0.15] }
+    { "id": "face", "channel": "Light", "direction": "in", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1], "faceSizeM": [0.2, 0.15], "displaysLight": true }
   ],
   "params": [],
   "readouts": [

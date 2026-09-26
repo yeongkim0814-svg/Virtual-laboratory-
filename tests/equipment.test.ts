@@ -43,7 +43,7 @@ describe('장비 등록', () => {
     });
     const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions);
     const placed = await m.validate(setup);
-    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
+    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
   });
   it('기본 세팅(public/setups/default.json)을 불러올 수 있다', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));

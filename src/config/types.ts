@@ -30,6 +30,15 @@ export interface AssetsFile {
   wiring: WiringStyle;
   /** 레이저 빛(선·빛 점) 외형. 색은 파장에서 계산. showBeam = false 면 빛 점만(실제 공기 중처럼). */
   laserBeam: { showBeam: boolean; beamRadiusM: number; beamOpacity: number; spotRadiusM: number };
+  /** 스크린 면 표시: 눈금(색·간격·띠 높이·선 굵기), 면에서 띄우는 높이, 무늬 밝기 배율. */
+  screenOverlay: {
+    rulerColor: string;
+    rulerTickM: number;
+    rulerBandHeightM: number;
+    rulerLineWidthM: number;
+    liftM: number;
+    patternGain: number;
+  };
   /** 장비 회전 중 표시하는 고리(밑넓이 원 둘레). */
   rotateGizmo: { color: string; tubeRadiusM: number; opacity: number; liftM: number };
 }

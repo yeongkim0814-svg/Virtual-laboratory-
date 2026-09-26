@@ -11,7 +11,8 @@
     "cupboard": null,
     "power-supply": null,
     "laser": null,
-    "screen": null
+    "screen": null,
+    "double-slit": null
   },
   "placeholders": {
     "floor": {
@@ -61,6 +62,10 @@
     "screen": {
       "color": "#eceff1",
       "sizeM": [0.24, 0.2, 0.02]
+    },
+    "double-slit": {
+      "color": "#263238",
+      "sizeM": [0.12, 0.2, 0.02]
     }
   },
   "environment": {
@@ -96,5 +101,13 @@
     "beamRadiusM": 0.0015,
     "beamOpacity": 0.45,
     "spotRadiusM": 0.004
+  },
+  "screenOverlay": {
+    "rulerColor": "#212121",
+    "rulerTickM": 0.001,
+    "rulerBandHeightM": 0.012,
+    "rulerLineWidthM": 0.00015,
+    "liftM": 0.0005,
+    "patternGain": 1.0
   }
 }

@@ -80,7 +80,12 @@
 - `src/signal/lightRouter.ts` — Light 채널 라우터: 출구에서 광선 추적 → 처음 닿는 받는 면(Light 입력)에 전달,
   장비 몸체·가구·벽은 막음. 이번 프레임 빛 목록(beams) 기록
 - `src/interaction/laserView.ts` — 빛 선·빛 점 그리기(색 = 파장, 외형 = assets.json laserBeam)
-- 장비: power-supply(직류 전원), laser(전기 입력 → 빛 출력, +z), screen(빛 받는 면 +z, 세기·파장 표시), test-*(채널 확인용)
+- `src/physics/doubleSlit.ts` — 이중 슬릿(승인 규칙): R5 I/I₀ = cos²(πd sinθ/λ)·sinc²(πa sinθ/λ), sinθ = y/√(y²+L²),
+  R6 투과 P_out = P_in·2a/D(빔 지름 1 mm). R7 조준 영역에 닿으면 두 슬릿 가운데를 지난다고 봄, L = 가운데 광선 거리
+- `src/interaction/screenOverlay.ts` — 스크린 면(displaysLight): 1 mm 눈금 + 간섭 무늬 셰이더(R5 를 GLSL 로 옮김,
+  같은 식인지 코드 리뷰로 확인 — 셰이더는 단위 테스트 불가). 색 = 파장 색 × I/I₀(R8). 실제 크기(세로 = 빔 지름)
+- 장비: power-supply(직류 전원), laser(전기 입력 → 빛 출력, +z), double-slit(뒤 조준 영역 2×2 cm → 앞으로 슬릿 빛),
+  screen(빛 받는 면 +z, 세기·파장 표시, 무늬·눈금), test-*(채널 확인용)
 - Light 포트: 정의에 directionLocal(단위벡터), 입력은 faceSizeM. 케이블로 잇지 않음.
   params/readouts 의 displayScale: 값은 SI 로 저장, 표시는 × 배율(예: 파장 m → nm 1e9)
 - 광축 높이: 광학 장비의 빛 출구·받는 면 중심은 놓인 면에서 0.10 m

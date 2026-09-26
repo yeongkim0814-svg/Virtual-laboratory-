@@ -15,6 +15,7 @@ import { CableView } from './signal/cableView';
 import { CableLayout } from './signal/cableLayout';
 import { LightRouter } from './signal/lightRouter';
 import { LaserView } from './interaction/laserView';
+import { ScreenOverlay } from './interaction/screenOverlay';
 import { furnitureBoxes } from './room/furnitureParts';
 import { EquipmentPanel } from './ui/equipmentPanel';
 import { Hand } from './hand/hand';
@@ -67,6 +68,7 @@ async function main(): Promise<void> {
   const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);
   const cableView = new CableView(scene, cableLayout.routes, assetsFile.wiring);
   const laserView = new LaserView(scene, assetsFile.laserBeam);
+  const screenOverlay = new ScreenOverlay(equipment, assetsFile.screenOverlay);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
@@ -129,6 +131,7 @@ async function main(): Promise<void> {
     light.beginFrame();
     equipment.update(dtS);
     laserView.update(light.beams);
+    screenOverlay.update(light.beams);
     panel.tick();
     holdControls.tick();
     renderer.render(scene, camera);

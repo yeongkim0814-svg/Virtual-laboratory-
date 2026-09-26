@@ -14,6 +14,8 @@ export interface PortDef {
   directionLocal?: Vec3;
   /** Light 입력만: 빛을 받는 면 크기 [가로, 세로] (면 중심 = positionM, 가로축 = 로컬 y축 × 법선). */
   faceSizeM?: [number, number];
+  /** Light 입력만: 이 면에 닿은 빛(빛 점·간섭 무늬)과 1 mm 눈금을 그린다(스크린). */
+  displaysLight?: boolean;
 }
 
 /** 조정 가능한 수치. 슬라이더 UI 는 이 선언에서 자동 생성된다. */

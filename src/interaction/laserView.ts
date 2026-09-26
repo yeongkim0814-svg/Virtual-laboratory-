@@ -28,7 +28,8 @@ export class LaserView {
     this.pool.forEach((p, i) => {
       const b = beams[i];
       p.beam.visible = !!b && this.style.showBeam;
-      p.spot.visible = !!b;
+      // 슬릿을 지난 빛이 스크린에 닿으면 빛 점 대신 간섭 무늬(ScreenOverlay)가 보인다
+      p.spot.visible = !!b && !(b.values.slitSpacingM !== undefined && b.target);
       if (!b) return;
       const color = new THREE.Color(...wavelengthToRgb(b.wavelengthM));
       (p.beam.material as THREE.MeshBasicMaterial).color.copy(color);

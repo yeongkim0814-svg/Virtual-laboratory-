@@ -1,0 +1,18 @@
+{
+  "type": "double-slit",
+  "label": "이중 슬릿",
+  "asset": "double-slit",
+  "hold": { "hands": 1, "grips": [[0, 0.2, 0]] },
+  "channels": ["Light"],
+  "ports": [
+    { "id": "in", "channel": "Light", "direction": "in", "positionM": [0, 0.1, -0.01], "directionLocal": [0, 0, -1], "faceSizeM": [0.02, 0.02] },
+    { "id": "out", "channel": "Light", "direction": "out", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1] }
+  ],
+  "params": [
+    { "key": "slitSpacingM", "label": "슬릿 간격 d", "unit": "mm", "displayScale": 1000, "min": 0.0001, "max": 0.0005, "step": 0.00001, "default": 0.0001 },
+    { "key": "slitWidthM", "label": "슬릿 폭 a", "unit": "mm", "displayScale": 1000, "min": 0.00002, "max": 0.00008, "step": 0.000001, "default": 0.00003 }
+  ],
+  "readouts": [
+    { "key": "transmittedPowerW", "label": "지나간 빛", "unit": "mW", "displayScale": 1000 }
+  ]
+}

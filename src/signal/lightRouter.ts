@@ -10,6 +10,12 @@ export interface Beam {
   trace: TraceResult;
   wavelengthM: number;
   powerW: number;
+  /** 신호 값 전체(슬릿을 지난 빛이면 slitSpacingM·slitWidthM 포함). */
+  values: Readonly<Record<string, number>>;
+  /** 받는 면에 닿았으면 그 면(무늬 그리기용). */
+  face?: Face;
+  /** 닿은 면의 포트(장비 id·포트 id). */
+  target?: PortRef;
 }
 
 const UP: Vec3 = [0, 1, 0];
@@ -49,14 +55,18 @@ export class LightRouter {
     }
     const boxes = [...this.world.bodyBoxes().filter((b) => b.id !== from.deviceId), ...this.world.furnitureBoxes];
     const trace = traceRay(from.worldPosM, normalize(from.worldDirM), faces, boxes, this.world.room);
+    const hit = trace.hit;
+    const target = hit.kind === 'face' ? byFace.get(hit.id) : undefined;
     this.beams.push({
       fromDeviceId: from.deviceId,
       originM: from.worldPosM,
       trace,
       wavelengthM: signal.values.wavelengthM ?? 0,
       powerW: signal.values.powerW ?? 0,
+      values: signal.values,
+      face: hit.kind === 'face' ? faces.find((f) => f.id === hit.id) : undefined,
+      target,
     });
-    const target = trace.hit.kind === 'face' ? byFace.get(trace.hit.id) : undefined;
     return target ? [target] : [];
   };
 }

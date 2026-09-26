@@ -101,7 +101,7 @@ describe('레이저 → 스크린', () => {
     const { m } = await make();
     expect(m.connect({ deviceId: 'laser', portId: 'beam' }, { deviceId: 'screen', portId: 'face' })).toEqual({ ok: false, reason: 'light' });
   });
-  it('기본 세팅(실제 방): 테이블 위 레이저 빛이 스크린 앞면에 닿고 1 mW 를 받는다', async () => {
+  it('기본 세팅(실제 방): 레이저 → 이중 슬릿 → 스크린. R6 투과(1 mW × 2·0.03/1 = 0.06 mW), 슬릿 정보 전달', async () => {
     const lab = JSON.parse(readFileSync('public/lab.json', 'utf8')) as LabFile;
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: furnitureBoxes(lab.furniture), room: lab.room });
@@ -109,13 +109,43 @@ describe('레이저 → 스크린', () => {
       grid: { cellSizeM: lab.grid.cellSizeM, surfaces: new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM) }, portHitRadiusM: 0,
     });
     await m.load(parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions));
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       light.beginFrame();
       m.update(1 / 60);
     }
-    expect(m.get('screen-1')!.readouts.receivedPowerW).toBeCloseTo(0.001, 9);
-    // 출구 x = −2.75 + 0.1 = −2.65, 스크린 앞면 x = −1.6 − 0.01 = −1.61 → 1.04
-    expect(light.beams[0].trace.tM).toBeCloseTo(1.04, 6);
+    expect(m.get('slit-1')!.readouts.transmittedPowerW).toBeCloseTo(0.00006, 12);
+    expect(m.get('screen-1')!.readouts.receivedPowerW).toBeCloseTo(0.00006, 12);
+    // 레이저 출구 x = −2.65 → 슬릿 뒷면 −2.51 (0.14), 슬릿 앞면 −2.49 → 스크린 앞면 −1.61 (L = 0.88)
+    const toSlit = light.beams.find((b) => b.fromDeviceId === 'laser-1')!;
+    const toScreen = light.beams.find((b) => b.fromDeviceId === 'slit-1')!;
+    expect(toSlit.trace.tM).toBeCloseTo(0.14, 6);
+    expect(toScreen.trace.tM).toBeCloseTo(0.88, 6);
+    expect(toScreen.values.slitSpacingM).toBeCloseTo(0.0001, 12);
+    expect(toScreen.target?.deviceId).toBe('screen-1');
+  });
+  it('슬릿판 조준 영역(2 × 2 cm) 밖에 닿으면 판에 막힌다', async () => {
+    let m!: EquipmentManager;
+    const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
+      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0,
+    });
+    // 슬릿판을 옆으로 0.05 m 비켜 둠(조준 영역 반폭 0.01 밖, 판 반폭 0.06 안)
+    await m.load(parseSetup({
+      version: 2,
+      equipment: [
+        { id: 'ps', type: 'power-supply', positionM: [-0.6, 0, 0] },
+        { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
+        { id: 'slit', type: 'double-slit', positionM: [0.05, 0, 0.4] },
+        { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
+      ],
+      cables: [{ from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }],
+    }, registry.definitions));
+    for (let i = 0; i < 5; i++) {
+      light.beginFrame();
+      m.update(1 / 60);
+    }
+    expect(light.beams[0].trace.hit).toEqual({ kind: 'box', id: 'slit' });
+    expect(m.get('screen')!.readouts.receivedPowerW).toBe(0);
   });
 });
 
