@@ -120,5 +120,8 @@
   연결 불가 / 연결 중이면 빠짐. 용도: 전원선·센서 연결선(회로 설계용 아님)
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
+- 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사
+  (원점 = 바닥 중앙, 5,000 삼각형 이하, 빛 출구 = 모델 앞 끝). `tools/models/` = 모델 제작 스크립트(앱 코드 아님):
+  laser.mjs = 사용자 도면(스팀펑크 레이저)을 단순 부품으로 근사 → `node tools/models/laser.mjs`
 - 명령: `npm run dev` / `npm test` / `npm run build`
 - 배포: main push → Actions 테스트·빌드 → Pages (https://yeongkim0814-svg.github.io/Virtual-laboratory-/)

@@ -10,7 +10,7 @@
     "table": null,
     "cupboard": null,
     "power-supply": null,
-    "laser": null,
+    "laser": "models/laser.glb",
     "screen": null,
     "double-slit": null
   },
