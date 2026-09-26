@@ -2,10 +2,6 @@ import type { EquipmentInstance, EquipmentManager } from '../equipment/equipment
 import { decimalsForStep, formatValue } from './formatValue';
 
 const READOUT_DECIMALS = 2;
-/** 각도 슬라이더: 위에서 보아 반시계 방향이 + (three.js rotation.y). */
-const ANGLE_MIN_DEG = -180;
-const ANGLE_MAX_DEG = 180;
-const ANGLE_STEP_DEG = 1;
 
 /**
  * 단순 장비 패널. 장비 목록 → 선택한 장비의 params 슬라이더(자동 생성)와 readouts.
@@ -87,31 +83,6 @@ export class EquipmentPanel {
       return;
     }
     const rows: HTMLElement[] = [];
-
-    // 각도(배치 후 조정). 밑넓이가 원이라 돌려도 차지하는 셀은 같다. 들고 있는 동안은 불가.
-    {
-      const row = div('row');
-      const label = document.createElement('label');
-      const value = document.createElement('span');
-      const slider = document.createElement('input');
-      slider.type = 'range';
-      slider.min = String(ANGLE_MIN_DEG);
-      slider.max = String(ANGLE_MAX_DEG);
-      slider.step = String(ANGLE_STEP_DEG);
-      slider.value = String(inst.rotationYDeg);
-      slider.disabled = inst.held;
-      const show = (): void => {
-        value.textContent = inst.held ? '(들고 있는 중)' : formatValue(inst.rotationYDeg, '°', 0);
-      };
-      slider.addEventListener('input', () => {
-        this.manager.setRotation(inst.id, Number(slider.value));
-        show();
-      });
-      show();
-      label.append('각도 ', value);
-      row.append(label, slider);
-      rows.push(row);
-    }
 
     // params → 슬라이더 자동 생성
     for (const p of inst.def.params) {

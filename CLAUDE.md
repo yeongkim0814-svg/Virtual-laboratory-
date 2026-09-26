@@ -80,15 +80,17 @@
 - `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)
   두 손 장비는 집을 때 grip 을 잇는 선이 몸 좌우와 나란하도록 손 안에서 돈다(두 손 겹침 방지)
 - `src/interaction/` — interaction(탭으로 집기, 화면 중앙 시선으로 배치 후보, 탭으로 놓기), placementPreview(반투명 장비 + 밑넓이 셀)
-- `src/ui/holdControls.ts` — 들고 있을 때 조준점, 안내 메시지
-- 가구(lab.json furniture): 테이블 윗면, 찬장(문 없는 선반형 보관함, 이웃한 두 벽) 선반 = 장비를 놓는 면.
+- `src/ui/holdControls.ts` — 들고 있을 때 조준점, 안내 메시지, 앉기 버튼(눈높이 lab.json player.crouchEyeHeightM)
+- `src/interaction/rotateGizmo.ts` — 회전 중인 장비 둘레 고리
+- 가구(lab.json furniture): 테이블 윗면, 찬장(문 없는 선반형 보관함, 이웃한 두 벽을 가득) 선반 = 장비를 놓는 면.
   선반 사이 빈 높이보다 큰 장비는 못 놓음. 찬장 장비도 일반 장비처럼 집고 놓는다(따로 소환·재고 없음).
   조준이 면 가장자리에 걸리면 밑넓이가 면 안에 들어가는 가까운 셀로 끌어당김.
   가구 모양은 assets.json 의 type 이름(table, cupboard). 없으면 lab.json 치수로 만든 부품 상자.
   테이블 밑은 바닥 케이블이 지나감(다리만 피함). 플레이어는 가구를 통과하지 못함
 - 장비 배치 규칙: 위치는 셀 중심에만, 밑넓이(모델이 내접하는 원 → 격자) 셀이 하나라도 겹치거나 방 밖이면 배치 불가.
   셀이 안 겹치면 모델끼리도 절대 안 겹친다(원 ⊂ 셀).
-  들고 있는 동안 회전 불가 → 놓은 뒤 패널 각도 슬라이더(-180~180°, 1°)
+  들고 있는 동안 회전 불가 → 놓인 장비를 길게 누른 채(controls.longPressS) 좌우로 밀면 그 자리에서 회전,
+  손을 떼면 끝(1° 단위, 15° 배수 ±3° 에 붙음, 회전 고리 = assets.json rotateGizmo). 패널에는 각도 없음
 - `src/ui/equipmentPanel.ts` — 장비 목록, params 슬라이더 자동 생성, readouts 표시, 저장/불러오기
 - `public/setups/default.json` — 시작 시 불러오는 세팅
 

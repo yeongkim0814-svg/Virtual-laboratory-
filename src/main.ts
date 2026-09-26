@@ -18,6 +18,7 @@ import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
 import { HoldControls } from './ui/holdControls';
 import { PlacementPreview } from './interaction/placementPreview';
+import { RotateGizmo } from './interaction/rotateGizmo';
 import { Surfaces } from './room/surfaces';
 
 const MAX_DT_S = 0.1; // 탭 전환 등으로 프레임이 멈췄다 재개될 때 순간이동 방지
@@ -64,11 +65,11 @@ async function main(): Promise<void> {
   const player = new Player(camera, lab);
   const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx, lab.controls);
   const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
-  const holdControls = new HoldControls(hand);
+  const holdControls = new HoldControls(hand, player);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
   const interaction = new Interaction(
     camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
-    cableLayout,
+    cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo),
   );
 
   const panel = new EquipmentPanel(equipment, {
@@ -104,6 +105,11 @@ async function main(): Promise<void> {
 
   renderer.setAnimationLoop(() => {
     const dtS = Math.min(clock.getDelta(), MAX_DT_S);
+    // 길게 누르기 → 장비 회전(그 손가락의 드래그는 시점·이동 대신 회전)
+    const lp = controls.pollLongPress(performance.now() / 1000);
+    if (lp && interaction.startRotate(lp)) controls.capture(lp.id);
+    if (controls.capturing) interaction.rotateBy(controls.consumeCaptureDx());
+    else interaction.endRotate();
     const look = controls.consumeLook();
     player.update(dtS, controls.move, look);
     for (const tap of controls.consumeTaps()) interaction.handleTap(tap);

@@ -4,7 +4,7 @@ import {
   assignHands, bobOffsetM, gripCenter, heldLocalPosition, placementYawRad, rotateY, smoothstep, swayStep, swingPose,
   twoHandYawRad, withinReach, wrapAngleRad,
 } from '../src/hand/handMath';
-import { isTap } from '../src/input/controlMath';
+import { approach, isLongPress, isTap, snapAngleDeg } from '../src/input/controlMath';
 
 describe('smoothstep', () => {
   it('0 → 0, 0.5 → 0.5, 1 → 1, 범위 밖은 자름', () => {
@@ -155,3 +155,34 @@ describe('isTap', () => {
     expect(isTap(8, 0.5, cfg)).toBe(false);
   });
 });
+
+describe('isLongPress', () => {
+  const cfg = { tapMaxMovePx: 10, longPressS: 0.5 };
+  it('5px·0.6s → 길게 누르기 / 0.4s → 아님 / 20px → 아님(드래그)', () => {
+    expect(isLongPress(5, 0.6, cfg)).toBe(true);
+    expect(isLongPress(5, 0.4, cfg)).toBe(false);
+    expect(isLongPress(20, 0.6, cfg)).toBe(false);
+  });
+});
+
+describe('snapAngleDeg (15° 배수 ±3° 에 붙음)', () => {
+  it('88 → 90, 86.6 → 87, 44.2 → 45, 37.4 → 37', () => {
+    expect(snapAngleDeg(88, 15, 3)).toBe(90);
+    expect(snapAngleDeg(86.6, 15, 3)).toBe(87);
+    expect(snapAngleDeg(44.2, 15, 3)).toBe(45);
+    expect(snapAngleDeg(37.4, 15, 3)).toBe(37);
+  });
+  it('−180 < 각 ≤ 180 로 정규화: 272 → −90, −181.5 → 180', () => {
+    expect(snapAngleDeg(272, 15, 3)).toBe(-90);
+    expect(snapAngleDeg(-181.5, 15, 3)).toBe(180);
+  });
+});
+
+describe('approach', () => {
+  it('1.6 → 0.9 로 한 번에 0.1 씩, 가까우면 목표에 멈춤', () => {
+    expect(approach(1.6, 0.9, 0.1)).toBeCloseTo(1.5);
+    expect(approach(0.95, 0.9, 0.1)).toBe(0.9);
+    expect(approach(0.9, 1.6, 0.2)).toBeCloseTo(1.1);
+  });
+});
+

@@ -28,6 +28,8 @@ export interface AssetsFile {
   environment: EnvironmentSpec;
   placementPreview: PlacementPreviewStyle;
   wiring: WiringStyle;
+  /** 장비 회전 중 표시하는 고리(밑넓이 원 둘레). */
+  rotateGizmo: { color: string; tubeRadiusM: number; opacity: number; liftM: number };
 }
 
 /** 케이블·포트 외형. */
@@ -106,6 +108,10 @@ export interface LabFile {
     /** 벽과의 최소 거리(몸 반지름). */
     radiusM: number;
     walkSpeedMPerS: number;
+    /** 앉았을 때 눈높이, 서기↔앉기 전환 시간, 앉아서 걷는 속도 배율. */
+    crouchEyeHeightM: number;
+    crouchTransitionS: number;
+    crouchSpeedFactor: number;
   };
   camera: { fovDeg: number; nearM: number; farM: number };
   controls: {
@@ -115,6 +121,12 @@ export interface LabFile {
     /** 탭 판정: 이 거리(px) 이하로 움직이고 이 시간(s) 안에 떼면 탭. */
     tapMaxMovePx: number;
     tapMaxDurationS: number;
+    /** 이 시간(s) 이상 거의 움직이지 않고 누르면 길게 누르기(장비 회전 시작). */
+    longPressS: number;
+    /** 장비 회전: 좌우 1 px 당 각도, 이 간격(°)의 배수 ±window° 안이면 그 각도에 붙음. */
+    rotateDegPerPx: number;
+    rotateSnapStepDeg: number;
+    rotateSnapWindowDeg: number;
   };
   hand: HandConfig;
 }

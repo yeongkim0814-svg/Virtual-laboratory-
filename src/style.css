@@ -115,3 +115,14 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
 }
 .crosshair[hidden] { display: none; }
 
+
+/* 앉기 버튼: 오른쪽 아래(시점 드래그 영역 위, 버튼은 캔버스보다 위라 드래그와 겹치지 않음) */
+.crouch-button {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+  min-width: 72px;
+  height: 56px;
+  font-size: 18px;
+}

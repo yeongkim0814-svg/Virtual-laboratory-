@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { LabFile } from '../config/types';
-import { applyLook, walkDelta, type Vec2 } from '../input/controlMath';
+import { applyLook, approach, walkDelta, type Vec2 } from '../input/controlMath';
 import { clampToRoom } from '../room/roomLayout';
 import { furnitureRect } from '../room/surfaces';
 import { pushOutOfRect, type Rect } from '../geom/rect';
@@ -15,6 +15,9 @@ export class Player {
   private pitchRad = 0;
   /** 누적 이동 거리(손 흔들림 계산용). */
   walkedM = 0;
+  /** 앉기 상태(버튼으로 전환). 눈높이는 전환 시간 동안 부드럽게 바뀐다. */
+  crouching = false;
+  private eyeM: number;
   private readonly furniture: Rect[];
 
   constructor(
@@ -22,6 +25,7 @@ export class Player {
     private readonly cfg: LabFile,
   ) {
     this.furniture = cfg.furniture.map(furnitureRect);
+    this.eyeM = cfg.player.eyeHeightM;
     const [x, , z] = cfg.player.startPositionM;
     this.xM = x;
     this.zM = z;
@@ -39,7 +43,13 @@ export class Player {
     this.yawRad = look.yawRad;
     this.pitchRad = look.pitchRad;
 
-    const d = walkDelta(this.yawRad, move, this.cfg.player.walkSpeedMPerS, dtS);
+    const pl = this.cfg.player;
+    const eyeTarget = this.crouching ? pl.crouchEyeHeightM : pl.eyeHeightM;
+    const eyeRate = Math.abs(pl.eyeHeightM - pl.crouchEyeHeightM) / pl.crouchTransitionS;
+    this.eyeM = approach(this.eyeM, eyeTarget, eyeRate * dtS);
+
+    const speed = pl.walkSpeedMPerS * (this.crouching ? pl.crouchSpeedFactor : 1);
+    const d = walkDelta(this.yawRad, move, speed, dtS);
     let p = clampToRoom(this.xM + d.dxM, this.zM + d.dzM, this.cfg.room, this.cfg.player.radiusM);
     for (const r of this.furniture) {
       const [x, z] = pushOutOfRect(r, p.xM, p.zM, this.cfg.player.radiusM); // 가구를 통과하지 못함
@@ -56,7 +66,7 @@ export class Player {
   }
 
   private apply(): void {
-    this.camera.position.set(this.xM, this.cfg.player.eyeHeightM, this.zM);
+    this.camera.position.set(this.xM, this.eyeM, this.zM);
     this.camera.rotation.set(this.pitchRad, this.yawRad, 0);
   }
 }

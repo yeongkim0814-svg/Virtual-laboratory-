@@ -8,7 +8,7 @@ import { loadEquipmentRegistry } from '../src/equipment/registry';
 import { parseSetup } from '../src/equipment/setup';
 import { validateDefinition } from '../src/equipment/validateDefinition';
 import type { EquipmentDefinition } from '../src/equipment/types';
-import type { AssetsFile } from '../src/config/types';
+import type { AssetsFile, LabFile } from '../src/config/types';
 import { SignalBus } from '../src/signal/signalBus';
 import { cableRouter, type Cable } from '../src/signal/cables';
 import { createPlaceholderBox } from '../src/assets/placeholder';
@@ -32,6 +32,16 @@ describe('장비 등록', () => {
       expect(assetsFile.assets, d.type).toHaveProperty(d.asset);
       expect(assetsFile.placeholders[d.asset]?.sizeM, d.type).toHaveLength(3);
     }
+  });
+  it('기본 세팅은 실제 방(lab.json 가구·격자)에서 배치 규칙을 통과한다(선반·테이블 위, 안 겹침)', async () => {
+    const lab = JSON.parse(readFileSync('public/lab.json', 'utf8')) as LabFile;
+    const surfaces = new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM);
+    const m = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => []), {
+      grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0,
+    });
+    const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions);
+    const placed = await m.validate(setup);
+    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
   });
   it('기본 세팅(public/setups/default.json)을 불러올 수 있다', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));

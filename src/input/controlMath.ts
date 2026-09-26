@@ -68,3 +68,30 @@ export function isTap(
 ): boolean {
   return movedPx <= cfg.tapMaxMovePx && durationS <= cfg.tapMaxDurationS;
 }
+
+/** 길게 누르기: 거의 움직이지 않고(≤ tapMaxMovePx) longPressS 이상 누르고 있음. */
+export function isLongPress(
+  movedPx: number,
+  heldS: number,
+  cfg: { tapMaxMovePx: number; longPressS: number },
+): boolean {
+  return movedPx <= cfg.tapMaxMovePx && heldS >= cfg.longPressS;
+}
+
+/**
+ * 회전 각도 붙임: 가장 가까운 stepDeg 배수와 windowDeg 이내면 그 배수로, 아니면 1° 단위.
+ * 결과는 −180 < 각 ≤ 180.
+ */
+export function snapAngleDeg(rawDeg: number, stepDeg: number, windowDeg: number): number {
+  const nearest = Math.round(rawDeg / stepDeg) * stepDeg;
+  const d = Math.abs(rawDeg - nearest) <= windowDeg ? nearest : Math.round(rawDeg);
+  let w = ((d % 360) + 360) % 360;
+  if (w > 180) w -= 360;
+  return w + 0;
+}
+
+/** current 를 target 쪽으로 최대 maxStep 만큼 옮긴다(앉기·서기 눈높이 전환). */
+export function approach(current: number, target: number, maxStep: number): number {
+  if (Math.abs(target - current) <= maxStep) return target;
+  return current + Math.sign(target - current) * maxStep;
+}

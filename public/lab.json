@@ -17,18 +17,18 @@
     {
       "id": "cupboard-n",
       "type": "cupboard",
-      "positionM": [-3, 0, -4.75],
+      "positionM": [0, 0, -4.75],
       "rotationYDeg": 0,
-      "sizeM": [4, 1.8, 0.5],
+      "sizeM": [10, 1.8, 0.5],
       "shelves": 4,
       "panelThicknessM": 0.02
     },
     {
       "id": "cupboard-w",
       "type": "cupboard",
-      "positionM": [-4.75, 0, -2.5],
+      "positionM": [-4.75, 0, 0.25],
       "rotationYDeg": 90,
-      "sizeM": [4, 1.8, 0.5],
+      "sizeM": [9.5, 1.8, 0.5],
       "shelves": 4,
       "panelThicknessM": 0.02
     }
@@ -46,7 +46,10 @@
     "startYawDeg": 0,
     "eyeHeightM": 1.6,
     "radiusM": 0.3,
-    "walkSpeedMPerS": 1.5
+    "walkSpeedMPerS": 1.5,
+    "crouchEyeHeightM": 0.9,
+    "crouchTransitionS": 0.25,
+    "crouchSpeedFactor": 0.5
   },
   "camera": {
     "fovDeg": 70,
@@ -58,7 +61,11 @@
     "lookSensitivityRadPerPx": 0.005,
     "maxPitchDeg": 85,
     "tapMaxMovePx": 10,
-    "tapMaxDurationS": 0.3
+    "tapMaxDurationS": 0.3,
+    "longPressS": 0.5,
+    "rotateDegPerPx": 0.5,
+    "rotateSnapStepDeg": 15,
+    "rotateSnapWindowDeg": 3
   },
   "hand": {
     "rightRestM": [0.26, -0.36, -0.62],

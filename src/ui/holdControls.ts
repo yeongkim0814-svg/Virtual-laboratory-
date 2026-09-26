@@ -1,12 +1,25 @@
 import type { Hand } from '../hand/hand';
 
-/** 들고 있을 때 조준점 + 짧은 안내 메시지. (들고 있는 동안 회전은 안 됨, 놓기는 바닥을 보고 탭) */
+/** 들고 있을 때 조준점 + 짧은 안내 메시지 + 앉기 버튼. (들고 있는 동안 회전은 안 됨, 놓기는 면을 보고 탭) */
 export class HoldControls {
   private readonly toast: HTMLDivElement;
   private readonly crosshair: HTMLDivElement;
   private toastTimer = 0;
 
-  constructor(private readonly hand: Hand) {
+  constructor(
+    private readonly hand: Hand,
+    player: { crouching: boolean },
+  ) {
+    const crouch = document.createElement('button');
+    crouch.type = 'button';
+    crouch.className = 'crouch-button';
+    crouch.textContent = '앉기';
+    crouch.addEventListener('click', () => {
+      player.crouching = !player.crouching;
+      crouch.textContent = player.crouching ? '일어서기' : '앉기';
+    });
+    document.body.append(crouch);
+
     this.toast = document.createElement('div');
     this.toast.className = 'toast';
     this.toast.hidden = true;

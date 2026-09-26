@@ -9,8 +9,9 @@ import {
 } from '../grid/grid';
 import type { Hand, PlacementPose } from '../hand/hand';
 import { placementYawRad, withinReach } from '../hand/handMath';
-import type { Vec2 } from '../input/controlMath';
+import { snapAngleDeg, type Vec2 } from '../input/controlMath';
 import type { PlacementPreview } from './placementPreview';
+import type { RotateGizmo } from './rotateGizmo';
 import type { CableLayout } from '../signal/cableLayout';
 
 const DEG = Math.PI / 180;
@@ -45,12 +46,15 @@ const CABLE_REASON_TEXT = {
  * - 들고 있음: 화면 중앙으로 바라보는 가까운 면(바닥·테이블 윗면·찬장 선반)에 배치 미리보기(격자 셀에 맞춤).
  *   탭하면 미리보기 자리에 놓는다. 셀이 겹치거나 면 밖이거나 선반 사이보다 크면 놓지 않는다.
  *   (찬장은 문 없는 보관함: 선반에 놓고, 선반에서 집어 쓴다)
+ * - 빈손: 놓인 장비를 길게 누른 채 좌우로 밀면 그 자리에서 회전(15° 배수 근처는 붙음), 손을 떼면 끝
  */
 export class Interaction {
   private readonly raycaster = new THREE.Raycaster();
   private candidate: Candidate | null = null;
   /** 케이블을 잇기 위해 먼저 고른 포트. */
   private selectedPort: PortAddress | null = null;
+  /** 회전 중인 장비와 붙이기 전 누적 각도. */
+  private rotating: { inst: EquipmentInstance; rawDeg: number } | null = null;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
@@ -64,7 +68,49 @@ export class Interaction {
     private readonly notify: (msg: string) => void,
     private readonly selectedPortScale: number,
     private readonly cableLayout: CableLayout,
+    private readonly gizmo: RotateGizmo,
   ) {}
+
+  get isRotating(): boolean {
+    return this.rotating !== null;
+  }
+
+  /** 길게 누르기: 닿는 거리의 놓인 장비(포트 제외)면 회전 시작. 시작했으면 true(그 손가락을 가져간다). */
+  startRotate(pos: Vec2): boolean {
+    if (this.hand.busy || this.hand.heldInstance) return false;
+    this.raycaster.setFromCamera(this.ndc(pos), this.camera);
+    const hit = this.raycaster.intersectObjects([this.manager.group, this.roomGroup], true)[0];
+    const inst = hit && this.manager.findByObject(hit.object);
+    if (!inst || portAddressOf(hit.object) || inst.held) return false;
+    if (!withinReach(this.eye(), hit.point.toArray(), this.cfg.hand.reachM)) {
+      this.notify('너무 멀어요. 더 가까이 가세요');
+      return false;
+    }
+    this.selectPort(null);
+    this.rotating = { inst, rawDeg: inst.rotationYDeg };
+    this.gizmo.show(inst);
+    this.notify(`각도 ${inst.rotationYDeg}°`);
+    return true;
+  }
+
+  /** 가로 드래그(px)만큼 회전. 오른쪽으로 밀면 위에서 보아 시계 방향(= yaw 감소). */
+  rotateBy(dxPx: number): void {
+    const r = this.rotating;
+    if (!r || dxPx === 0) return;
+    const c = this.cfg.controls;
+    r.rawDeg -= dxPx * c.rotateDegPerPx;
+    const deg = snapAngleDeg(r.rawDeg, c.rotateSnapStepDeg, c.rotateSnapWindowDeg);
+    if (deg !== r.inst.rotationYDeg) {
+      this.manager.setRotation(r.inst.id, deg);
+      this.notify(`각도 ${deg}°`);
+    }
+  }
+
+  endRotate(): void {
+    if (!this.rotating) return;
+    this.rotating = null;
+    this.gizmo.hide();
+  }
 
   /** 매 프레임: 들고 있으면 시선이 닿는 바닥에 배치 미리보기. */
   update(): void {
@@ -86,10 +132,7 @@ export class Interaction {
   handleTap(tap: Vec2): void {
     if (this.hand.busy) return;
     const held = this.hand.heldInstance;
-    this.raycaster.setFromCamera(
-      new THREE.Vector2((tap.x / window.innerWidth) * 2 - 1, -(tap.y / window.innerHeight) * 2 + 1),
-      this.camera,
-    );
+    this.raycaster.setFromCamera(this.ndc(tap), this.camera);
     // 장비 앞을 가로막는 방 객체(찬장 옆판·선반 등)가 있으면 그 뒤 장비는 집을 수 없다
     const hit = this.raycaster.intersectObjects([this.manager.group, this.roomGroup], true)[0];
 
@@ -164,6 +207,10 @@ export class Interaction {
     marker(this.selectedPort)?.scale.setScalar(1);
     this.selectedPort = port;
     marker(port)?.scale.setScalar(this.selectedPortScale);
+  }
+
+  private ndc(p: Vec2): THREE.Vector2 {
+    return new THREE.Vector2((p.x / window.innerWidth) * 2 - 1, -(p.y / window.innerHeight) * 2 + 1);
   }
 
   private eye(): Vec3 {
