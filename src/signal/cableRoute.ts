@@ -176,9 +176,12 @@ function crossRoute(
   const legOf = (s: Stub, pl: Plane, e: Edge) => {
     const path = planarPath(s.exit, e.pointM, pl, cfg, budget);
     if (!path) return null;
-    const top = path.map(([x, z]) => [x, pl.yM + cfg.liftM, z] as Vec3);
     const drop: [number, number] = [e.pointM[0] + e.outward[0] * off, e.pointM[1] + e.outward[1] * off];
-    return { top, drop, rect: pl.region!, lengthM: polylineLength(top) };
+    // 윗면 높이로 가장자리를 넘어(반지름 + 여유만큼 바깥) 간 뒤에 내려간다 → 옆면에 묻히지 않는다
+    const top = [...path, drop].map(([x, z]) => [x, pl.yM + cfg.liftM, z] as Vec3);
+    const r = pl.region!;
+    const rect = { ...r, hxM: r.hxM + cfg.liftM, hzM: r.hzM + cfg.liftM }; // 케이블 반지름만큼 넓힌 테이블
+    return { top, drop, rect, lengthM: polylineLength(top) };
   };
   const la = ea ? legOf(sa, pa, ea) : null;
   if (ea && !la) return null;

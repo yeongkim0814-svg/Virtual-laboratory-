@@ -71,9 +71,10 @@ describe('routeCable', () => {
     const r: CableEnd = { portM: [0.6, 0, 0], body: null, fallbackDir: [1, 0], planeId: 'floor' };
     expect(routeCable(l, r, onFloor([wall]), narrow)).toBeNull();
   });
-  it('테이블 위 장비 → 가장자리 → 비스듬히 바닥 장비: 0.13 + 0.3 + √(0.57² + 0.75²) + 0.13 = 1.502019 m', () => {
+  it('테이블 위 장비 → 가장자리를 넘어 → 비스듬히 바닥 장비: 0.13 + 0.31 + √(0.56² + 0.75²) + 0.13 = 1.506002 m', () => {
     // 테이블 윗면 높이 0.75, 반폭 0.5, 반깊이 0.3 (원점). 테이블 위 장비 원 (0,0) r 0.1, 포트 (0.1, 0.85, 0)
-    // 출구 (0.13, 0) → +z 변 (0.13, 0.3) → 바닥 장비 출구 (0.13, 0, 0.87) 까지 곧게 늘어뜨림(가림 없음)
+    // 출구 (0.13, 0) → +z 변 (0.13, 0.3) → 윗면 높이로 여유 0.01 넘어 (0.13, 0.31)
+    // → 바닥 장비 출구 (0.13, 0, 0.87) 까지 곧게 늘어뜨림(가림 없음)
     // 바닥 장비 원 (0.13, 1) r 0.1, 포트 (0.13, 0.1, 0.9) → 출구 (0.13, 0.87)
     const planes: Plane[] = [
       { id: 'floor', yM: 0, region: null, circles: [{ xM: 0.13, zM: 1, rM: 0.1 }], boxes: [] },
@@ -82,7 +83,7 @@ describe('routeCable', () => {
     const onTable: CableEnd = { portM: [0.1, 0.85, 0], body: { xM: 0, zM: 0, rM: 0.1 }, fallbackDir: [1, 0], planeId: 't' };
     const onFloorEnd: CableEnd = { portM: [0.13, 0.1, 0.9], body: { xM: 0.13, zM: 1, rM: 0.1 }, fallbackDir: [0, -1], planeId: 'floor' };
     const r = routeCable(onTable, onFloorEnd, planes, cfg)!;
-    expect(r.lengthM).toBeCloseTo(0.13 + 0.3 + Math.hypot(0.57, 0.75) + 0.13, 5);
+    expect(r.lengthM).toBeCloseTo(0.13 + 0.31 + Math.hypot(0.56, 0.75) + 0.13, 5);
     expect(routeCable(onTable, onFloorEnd, planes, { ...cfg, maxLengthM: 1.45 })).toBeNull();
   });
   it('상대가 테이블 옆쪽에 있으면 가장 가까운 변이 아니라 상대 쪽 변으로 간다', () => {
@@ -94,13 +95,40 @@ describe('routeCable', () => {
     const onTable: CableEnd = { portM: [0.1, 0.85, 0], body: { xM: 0, zM: 0, rM: 0.1 }, fallbackDir: [1, 0], planeId: 't' };
     const held: CableEnd = { portM: [1.2, 0, 0], body: null, fallbackDir: [1, 0], planeId: 'floor' };
     const r = routeCable(onTable, held, planes, cfg)!;
-    // 0.13 + (0.13 → 0.5 = 0.37) + (0.5, 0.75, 0) → (1.2, 0, 0) = √(0.7² + 0.75²)
-    expect(r.lengthM).toBeCloseTo(0.13 + 0.37 + Math.hypot(0.7, 0.75), 5);
+    // 0.13 + (0.13 → 0.5 = 0.37) + 넘기 0.01 + (0.51, 0.75, 0) → (1.2, 0, 0) = √(0.69² + 0.75²)
+    expect(r.lengthM).toBeCloseTo(0.13 + 0.38 + Math.hypot(0.69, 0.75), 5);
   });
   it('바닥의 찬장(사각형)은 피해 간다', () => {
     const box = { xM: 0, zM: 0, hxM: 0.05, hzM: 0.3, yawRad: 0 };
     const r = routeCable(endA, endB, onFloor([A, B], [box]), cfg)!;
     expect(r.lengthM).toBeGreaterThan(0.22 + 2 * STUB + 0.1);
+  });
+  it('테이블 위 → 바닥 케이블은 테이블 부피(케이블 반지름만큼 넓힘) 안을 지나지 않는다', () => {
+    const lifted = { ...cfg, liftM: 0.006 };
+    const rect = { xM: 0, zM: 0, hxM: 0.5, hzM: 0.3, yawRad: 0 };
+    const planes: Plane[] = [
+      { id: 'floor', yM: 0, region: null, circles: [], boxes: [] },
+      { id: 't', yM: 0.75, region: rect, circles: [{ xM: 0.3, zM: 0, rM: 0.1 }], boxes: [] },
+    ];
+    const onTable: CableEnd = { portM: [0.4, 0.85, 0], body: { xM: 0.3, zM: 0, rM: 0.1 }, fallbackDir: [1, 0], planeId: 't' };
+    // 목표: 옆, 모서리 너머, 반대편 아래(테이블 밑 바닥)
+    for (const [x, z] of [[0.9, 0], [0.3, 0.8], [0.9, 0.7], [-0.2, 0.5], [0, 0]]) {
+      const target: CableEnd = { portM: [x, 0, z], body: null, fallbackDir: [1, 0], planeId: 'floor' };
+      const r = routeCable(onTable, target, planes, lifted)!;
+      expect(r).not.toBeNull();
+      const pts = r.pointsM;
+      for (let i = 1; i < pts.length; i++) {
+        for (let k = 0; k <= 20; k++) {
+          const t = k / 20;
+          const px = pts[i - 1][0] + (pts[i][0] - pts[i - 1][0]) * t;
+          const py = pts[i - 1][1] + (pts[i][1] - pts[i - 1][1]) * t;
+          const pz = pts[i - 1][2] + (pts[i][2] - pts[i - 1][2]) * t;
+          const inside = Math.abs(px) < 0.5 + 0.006 - 1e-6 && Math.abs(pz) < 0.3 + 0.006 - 1e-6;
+          const buried = inside && py < 0.75 + 0.006 - 1e-6 && py > 0.006 + 1e-6; // 윗면 위·바닥 위는 괜찮음
+          expect(buried, `목표 (${x}, ${z}) 구간 ${i} t=${t} 점 (${px.toFixed(3)}, ${py.toFixed(3)}, ${pz.toFixed(3)})`).toBe(false);
+        }
+      }
+    }
   });
 });
 
