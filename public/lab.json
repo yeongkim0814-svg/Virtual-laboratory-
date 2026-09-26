@@ -8,11 +8,7 @@
     "contactToleranceM": 0.02
   },
   "player": {
-    "startPositionM": [
-      0,
-      0,
-      3
-    ],
+    "startPositionM": [0, 0, 3],
     "startYawDeg": 0,
     "eyeHeightM": 1.6,
     "radiusM": 0.3,
@@ -26,6 +22,23 @@
   "controls": {
     "joystickRadiusPx": 60,
     "lookSensitivityRadPerPx": 0.005,
-    "maxPitchDeg": 85
+    "maxPitchDeg": 85,
+    "tapMaxMovePx": 10,
+    "tapMaxDurationS": 0.3
+  },
+  "hand": {
+    "restPositionM": [0.26, -0.36, -0.62],
+    "gripAnchorM": [0, 0, -0.06],
+    "reachM": 2.0,
+    "transitionS": 0.25,
+    "rotateStepDeg": 15,
+    "swayMPerPx": 0.0003,
+    "swayMaxM": 0.03,
+    "swayReturnPerS": 10,
+    "bobAmplitudeM": 0.01,
+    "bobCyclesPerM": 0.8
+  },
+  "placement": {
+    "snapRadiusM": 0.1
   }
 }

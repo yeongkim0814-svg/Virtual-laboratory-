@@ -2,6 +2,7 @@
   "type": "test-probe",
   "label": "테스트 수신기 (채널 확인용)",
   "asset": "test-probe",
+  "grip": { "positionM": [0, 0.2, 0] },
   "channels": ["Electric"],
   "ports": [
     { "id": "in", "channel": "Electric", "direction": "in", "positionM": [-0.15, 0.1, 0] }

@@ -56,3 +56,15 @@ export function applyLook(
     pitchRad: Math.max(-maxPitchRad, Math.min(maxPitchRad, nextPitch)),
   };
 }
+
+/**
+ * 탭 판정: 손가락이 거의 움직이지 않고(maxMovePx 이하) 짧게(maxDurationS 이하) 뗐는가.
+ * 드래그(시점 회전)·조이스틱과 구분하는 데 쓴다.
+ */
+export function isTap(
+  movedPx: number,
+  durationS: number,
+  cfg: { tapMaxMovePx: number; tapMaxDurationS: number },
+): boolean {
+  return movedPx <= cfg.tapMaxMovePx && durationS <= cfg.tapMaxDurationS;
+}

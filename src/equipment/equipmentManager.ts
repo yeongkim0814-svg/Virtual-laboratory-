@@ -14,6 +14,8 @@ export interface EquipmentInstance extends SetupItem {
   behavior: Behavior;
   readouts: Record<string, number | null>;
   object: THREE.Object3D;
+  /** 손에 들려 있으면 true. 들린 장비의 포트는 신호 라우팅에서 빠진다. */
+  held: boolean;
 }
 
 /**
@@ -26,7 +28,8 @@ export interface EquipmentInstance extends SetupItem {
 export class EquipmentManager {
   readonly instances: EquipmentInstance[] = [];
   private pending: Emission[] = [];
-  private readonly group = new THREE.Group();
+  /** 놓여 있는 장비의 3D 객체가 들어가는 그룹(월드 좌표). */
+  readonly group = new THREE.Group();
 
   constructor(
     scene: THREE.Scene,
@@ -47,6 +50,7 @@ export class EquipmentManager {
       const object = await this.assets.create(def.asset);
       object.position.set(...item.positionM);
       object.rotation.y = item.rotationYDeg * DEG;
+      object.userData.equipmentId = item.id;
       this.group.add(object);
       const readouts: Record<string, number | null> = {};
       for (const r of def.readouts) readouts[r.key] = null;
@@ -57,11 +61,47 @@ export class EquipmentManager {
         behavior: this.registry.behaviors.get(item.type)!.create(),
         readouts,
         object,
+        held: false,
       });
     }
   }
 
-  /** 현재 상태를 세팅 항목으로 (저장용). */
+  get(id: string): EquipmentInstance | undefined {
+    return this.instances.find((i) => i.id === id);
+  }
+
+  /** 레이캐스트로 맞은 3D 객체(자식 포함)가 어느 장비인지. */
+  findByObject(obj: THREE.Object3D | null): EquipmentInstance | undefined {
+    for (let o = obj; o; o = o.parent) {
+      const id = o.userData.equipmentId as string | undefined;
+      if (id !== undefined) return this.get(id);
+    }
+    return undefined;
+  }
+
+  setHeld(id: string, held: boolean): void {
+    const inst = this.get(id);
+    if (!inst) throw new Error(`장비 없음: ${id}`);
+    inst.held = held;
+  }
+
+  /** 놓인 위치·회전 갱신(세팅 저장·포트 계산에 쓰임). 3D 객체 이동은 호출자가 한다. */
+  setPose(id: string, positionM: [number, number, number], rotationYDeg: number): void {
+    const inst = this.get(id);
+    if (!inst) throw new Error(`장비 없음: ${id}`);
+    inst.positionM = [...positionM];
+    inst.rotationYDeg = rotationYDeg;
+  }
+
+  /** 놓여 있는(들리지 않은) 장비들의 포트, 월드 좌표. exceptId 장비는 제외. */
+  placedPorts(exceptId?: string): PortRef[] {
+    return this.worldPorts().filter((p) => p.deviceId !== exceptId);
+  }
+
+  /**
+   * 현재 상태를 세팅 항목으로 (저장용).
+   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다.
+   */
   toSetupItems(): SetupItem[] {
     return this.instances.map(({ id, type, positionM, rotationYDeg, params }) => ({
       id, type, positionM, rotationYDeg, params,
@@ -83,8 +123,10 @@ export class EquipmentManager {
         params: inst.params,
         inputs,
         emit: (portId, values) => {
-          const from = ports.find((p) => p.deviceId === inst.id && p.portId === portId);
-          if (!from || from.direction !== 'out') throw new Error(`${inst.type}: 출력 포트 ${portId} 없음`);
+          const decl = inst.def.ports.find((p) => p.id === portId);
+          if (!decl || decl.direction !== 'out') throw new Error(`${inst.type}: 출력 포트 ${portId} 없음`);
+          if (inst.held) return; // 들고 있는 동안은 어디에도 연결되지 않음
+          const from = ports.find((p) => p.deviceId === inst.id && p.portId === portId)!;
           next.push({ from, signal: { channel: from.channel, values: { ...values } } });
         },
         setReadout: (key, value) => {
@@ -96,8 +138,9 @@ export class EquipmentManager {
     this.pending = next;
   }
 
+  /** 놓여 있는 장비의 포트(월드 좌표). 들린 장비는 연결되지 않으므로 제외. */
   private worldPorts(): PortRef[] {
-    return this.instances.flatMap((inst) =>
+    return this.instances.filter((inst) => !inst.held).flatMap((inst) =>
       inst.def.ports.map((p) => ({
         deviceId: inst.id,
         portId: p.id,

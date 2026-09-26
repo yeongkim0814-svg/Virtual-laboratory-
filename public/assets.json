@@ -3,7 +3,8 @@
     "floor": null,
     "wall": null,
     "test-source": null,
-    "test-probe": null
+    "test-probe": null,
+    "hand": null
   },
   "placeholders": {
     "floor": {
@@ -16,19 +17,15 @@
     },
     "test-source": {
       "color": "#4a7bd1",
-      "sizeM": [
-        0.3,
-        0.2,
-        0.2
-      ]
+      "sizeM": [0.3, 0.2, 0.2]
     },
     "test-probe": {
       "color": "#d19a4a",
-      "sizeM": [
-        0.3,
-        0.2,
-        0.2
-      ]
+      "sizeM": [0.3, 0.2, 0.2]
+    },
+    "hand": {
+      "color": "#e0b899",
+      "sizeM": [0.09, 0.05, 0.18]
     }
   },
   "environment": {
@@ -37,10 +34,6 @@
     "ambientLightIntensity": 0.6,
     "sunLightColor": "#ffffff",
     "sunLightIntensity": 1.2,
-    "sunLightDirection": [
-      0.4,
-      1.0,
-      0.3
-    ]
+    "sunLightDirection": [0.4, 1.0, 0.3]
   }
 }

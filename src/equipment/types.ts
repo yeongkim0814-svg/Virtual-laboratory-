@@ -33,6 +33,8 @@ export interface EquipmentDefinition {
   label: string;
   /** assets.json 의 에셋 이름. */
   asset: string;
+  /** 손으로 잡는 점(장비 로컬 좌표). 들고 있을 때 이 점이 손바닥에 붙는다. */
+  grip: { positionM: Vec3 };
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];

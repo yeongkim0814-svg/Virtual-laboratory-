@@ -32,7 +32,7 @@ describe('장비 등록', () => {
 
 describe('validateDefinition', () => {
   const good: EquipmentDefinition = {
-    type: 'x', label: 'x', asset: 'x', channels: ['Light'],
+    type: 'x', label: 'x', asset: 'x', grip: { positionM: [0, 0.1, 0] }, channels: ['Light'],
     ports: [{ id: 'p', channel: 'Light', direction: 'in', positionM: [0, 0, 0] }],
     params: [{ key: 'k', label: 'k', unit: '', min: 0, max: 1, step: 0.1, default: 0.5 }],
     readouts: [],
@@ -45,6 +45,10 @@ describe('validateDefinition', () => {
   it('default 가 범위 밖이면 오류', () => {
     const bad = { ...good, params: [{ ...good.params[0], default: 2 }] };
     expect(validateDefinition(bad).join()).toContain('범위 오류');
+  });
+  it('grip 이 없으면 오류', () => {
+    const bad = { ...good, grip: undefined } as unknown as EquipmentDefinition;
+    expect(validateDefinition(bad).join()).toContain('grip');
   });
   it('알 수 없는 채널 이름이면 오류', () => {
     const bad = { ...good, channels: ['Sound'] } as unknown as EquipmentDefinition;

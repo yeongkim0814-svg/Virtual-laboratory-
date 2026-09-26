@@ -11,6 +11,9 @@ import { loadEquipmentRegistry } from './equipment/registry';
 import { parseSetup, serializeSetup } from './equipment/setup';
 import { contactRouter, SignalBus } from './signal/signalBus';
 import { EquipmentPanel } from './ui/equipmentPanel';
+import { Hand } from './hand/hand';
+import { Interaction } from './interaction/interaction';
+import { HoldControls } from './ui/holdControls';
 
 const MAX_DT_S = 0.1; // 탭 전환 등으로 프레임이 멈췄다 재개될 때 순간이동 방지
 
@@ -37,27 +40,37 @@ async function main(): Promise<void> {
   scene.add(sun);
 
   const assets = new AssetRegistry(assetsFile);
-  scene.add(await buildRoom(assets, lab.room));
+  const room = await buildRoom(assets, lab.room);
+  scene.add(room);
 
   const bus = new SignalBus(contactRouter(lab.signal.contactToleranceM));
   const equipment = new EquipmentManager(scene, equipmentRegistry, assets, bus);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
+
+  const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
+  scene.add(camera); // 손(뷰모델)이 카메라의 자식이므로 카메라도 씬에 넣는다
+  const player = new Player(camera, lab);
+  const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx, lab.controls);
+  const hand = new Hand(camera, await assets.create('hand'), equipment, lab.hand);
+  const holdControls = new HoldControls(hand);
+  const interaction = new Interaction(camera, room, equipment, hand, player, lab, (m) => holdControls.notify(m));
 
   const panel = new EquipmentPanel(equipment, {
     onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems())),
     onLoadFile: (file) => {
       file
         .text()
-        .then((text) => equipment.load(parseSetup(JSON.parse(text), equipmentRegistry.definitions)))
+        .then((text) => {
+          const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions);
+          hand.reset();
+          return equipment.load(setup);
+        })
         .then(() => panel.refresh())
         .catch((err: unknown) => alert(`불러오기 실패: ${String(err)}`));
     },
   });
   panel.refresh();
 
-  const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
-  const player = new Player(camera, lab);
-  const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx);
 
   const resize = (): void => {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -74,9 +87,13 @@ async function main(): Promise<void> {
 
   renderer.setAnimationLoop(() => {
     const dtS = Math.min(clock.getDelta(), MAX_DT_S);
-    player.update(dtS, controls.move, controls.consumeLook());
+    const look = controls.consumeLook();
+    player.update(dtS, controls.move, look);
+    for (const tap of controls.consumeTaps()) interaction.handleTap(tap);
+    hand.update(dtS, look, player.walkedM);
     equipment.update(dtS);
     panel.tick();
+    holdControls.tick();
     renderer.render(scene, camera);
 
     frames++;

@@ -53,5 +53,31 @@ export interface LabFile {
     joystickRadiusPx: number;
     lookSensitivityRadPerPx: number;
     maxPitchDeg: number;
+    /** 탭 판정: 이 거리(px) 이하로 움직이고 이 시간(s) 안에 떼면 탭. */
+    tapMaxMovePx: number;
+    tapMaxDurationS: number;
   };
+  hand: HandConfig;
+  placement: {
+    /** 포트가 이 거리 이내면 맞닿도록 자동 정렬. */
+    snapRadiusM: number;
+  };
+}
+
+/** 1인칭 손(뷰모델). 좌표는 카메라 기준(+x 오른쪽, +y 위, -z 앞). */
+export interface HandConfig {
+  /** 카메라 기준 손 위치. */
+  restPositionM: Vec3;
+  /** 손 로컬 좌표에서 장비의 grip 점이 붙는 위치(손바닥). */
+  gripAnchorM: Vec3;
+  /** 집기·놓기가 가능한 거리(카메라에서). */
+  reachM: number;
+  /** 집기·놓기 동작 시간. */
+  transitionS: number;
+  rotateStepDeg: number;
+  swayMPerPx: number;
+  swayMaxM: number;
+  swayReturnPerS: number;
+  bobAmplitudeM: number;
+  bobCyclesPerM: number;
 }

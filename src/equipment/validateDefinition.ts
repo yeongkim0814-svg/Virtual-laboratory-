@@ -11,6 +11,9 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
   if (typeof d.asset !== 'string' || d.asset === '') errs.push(`${at}: asset 없음`);
   if (!Array.isArray(d.channels) || !d.channels.every(isChannel)) errs.push(`${at}: channels 오류`);
 
+  const gp = d.grip?.positionM;
+  if (!Array.isArray(gp) || gp.length !== 3 || !gp.every(isNum)) errs.push(`${at}: grip.positionM 오류`);
+
   const portIds = new Set<string>();
   for (const p of d.ports ?? []) {
     if (portIds.has(p.id)) errs.push(`${at}: 포트 id 중복 ${p.id}`);

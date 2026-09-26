@@ -11,6 +11,8 @@ export class Player {
   private zM: number;
   private yawRad: number;
   private pitchRad = 0;
+  /** 누적 이동 거리(손 흔들림 계산용). */
+  walkedM = 0;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
@@ -35,9 +37,14 @@ export class Player {
 
     const d = walkDelta(this.yawRad, move, this.cfg.player.walkSpeedMPerS, dtS);
     const p = clampToRoom(this.xM + d.dxM, this.zM + d.dzM, this.cfg.room, this.cfg.player.radiusM);
+    this.walkedM += Math.hypot(p.xM - this.xM, p.zM - this.zM);
     this.xM = p.xM;
     this.zM = p.zM;
     this.apply();
+  }
+
+  get yaw(): number {
+    return this.yawRad;
   }
 
   private apply(): void {
