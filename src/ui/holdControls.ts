@@ -14,7 +14,9 @@ export class HoldControls {
     crouch.type = 'button';
     crouch.className = 'crouch-button';
     crouch.textContent = '앉기';
-    crouch.addEventListener('click', () => {
+    // click 은 다른 손가락이 화면에 있으면(걷는 중) 만들어지지 않는다 → 닿는 순간(pointerdown)에 반응
+    crouch.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
       player.crouching = !player.crouching;
       crouch.textContent = player.crouching ? '일어서기' : '앉기';
     });
