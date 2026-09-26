@@ -1,7 +1,8 @@
 // 손·배치 계산 테스트 (기하·보간, 물리 규칙 아님). 기대값은 손계산 가능한 단순 값.
 import { describe, expect, it } from 'vitest';
 import {
-  bobOffsetM, heldLocalPosition, placementYawRad, smoothstep, swayStep, withinReach, wrapAngleRad,
+  assignHands, bobOffsetM, gripCenter, heldLocalPosition, placementYawRad, rotateY, smoothstep, swayStep, swingPose,
+  withinReach, wrapAngleRad,
 } from '../src/hand/handMath';
 import { isTap } from '../src/input/controlMath';
 
@@ -25,19 +26,69 @@ describe('wrapAngleRad', () => {
   });
 });
 
-describe('heldLocalPosition (grip 점이 손바닥에 오도록)', () => {
-  it('회전 0: anchor − grip', () => {
+describe('heldLocalPosition (grip 점들의 가운데가 anchor 에 오도록)', () => {
+  it('한 손, 회전 0: anchor − grip', () => {
     // anchor (0,0,-0.06), grip (0,0.2,0) → (0, -0.2, -0.06)
-    const p = heldLocalPosition([0, 0, -0.06], [0, 0.2, 0], 0);
+    const p = heldLocalPosition([0, 0, -0.06], [[0, 0.2, 0]], 0);
     expect(p[0]).toBeCloseTo(0);
     expect(p[1]).toBeCloseTo(-0.2);
     expect(p[2]).toBeCloseTo(-0.06);
   });
-  it('90° 회전: grip (0.1, 0, 0) 은 R·grip = (0, 0, -0.1) → 위치 (0, 0, 0.1)', () => {
-    const p = heldLocalPosition([0, 0, 0], [0.1, 0, 0], Math.PI / 2);
+  it('한 손, 90° 회전: grip (0.1, 0, 0) 은 R·grip = (0, 0, -0.1) → 위치 (0, 0, 0.1)', () => {
+    const p = heldLocalPosition([0, 0, 0], [[0.1, 0, 0]], Math.PI / 2);
     expect(p[0]).toBeCloseTo(0);
     expect(p[1]).toBeCloseTo(0);
     expect(p[2]).toBeCloseTo(0.1);
+  });
+  it('두 손: grip (-0.12, 0.2, 0), (0.12, 0.2, 0) 의 가운데 (0, 0.2, 0) 이 anchor (0, -0.4, -0.7) 에', () => {
+    const p = heldLocalPosition([0, -0.4, -0.7], [[-0.12, 0.2, 0], [0.12, 0.2, 0]], 0);
+    expect(p[0]).toBeCloseTo(0);
+    expect(p[1]).toBeCloseTo(-0.6);
+    expect(p[2]).toBeCloseTo(-0.7);
+  });
+});
+
+describe('rotateY / gripCenter', () => {
+  it('rotateY 90°: (1, 2, 0) → (0, 2, -1)', () => {
+    const r = rotateY([1, 2, 0], Math.PI / 2);
+    expect(r[0]).toBeCloseTo(0);
+    expect(r[1]).toBeCloseTo(2);
+    expect(r[2]).toBeCloseTo(-1);
+  });
+  it('gripCenter: (0,0,0), (0.2,0.4,-0.2) → (0.1, 0.2, -0.1)', () => {
+    const c = gripCenter([[0, 0, 0], [0.2, 0.4, -0.2]]);
+    expect(c[0]).toBeCloseTo(0.1);
+    expect(c[1]).toBeCloseTo(0.2);
+    expect(c[2]).toBeCloseTo(-0.1);
+  });
+});
+
+describe('assignHands', () => {
+  it('한 점 → 오른손만', () => {
+    expect(assignHands([[1, 2, 3]])).toEqual({ right: [1, 2, 3], left: null });
+  });
+  it('두 점 → x 가 작은 쪽이 왼손 (순서가 바뀌어도 같음)', () => {
+    expect(assignHands([[0.1, 0, 0], [-0.1, 0, 0]])).toEqual({ left: [-0.1, 0, 0], right: [0.1, 0, 0] });
+    expect(assignHands([[-0.1, 0, 0], [0.1, 0, 0]])).toEqual({ left: [-0.1, 0, 0], right: [0.1, 0, 0] });
+  });
+});
+
+describe('swingPose (Minecraft 식 휘두르기)', () => {
+  const cfg = { offsetM: [-0.1, 0.05, -0.08] as [number, number, number], rotDeg: [-40, -20, -20] as [number, number, number] };
+  it('p=0, p=1 에서 제자리', () => {
+    for (const p of [0, 1]) {
+      const s = swingPose(p, cfg);
+      for (const v of [...s.posM, ...s.rotRad]) expect(v).toBeCloseTo(0);
+    }
+  });
+  it('p=0.25 (√p=0.5): s1=1, s2=0, s3=sin(π/4), s4=sin(π/16)', () => {
+    const s = swingPose(0.25, cfg);
+    expect(s.posM[0]).toBeCloseTo(-0.1);
+    expect(s.posM[1]).toBeCloseTo(0);
+    expect(s.posM[2]).toBeCloseTo(-0.08 * Math.SQRT1_2);
+    expect(s.rotRad[0]).toBeCloseTo((-40 * Math.PI) / 180);
+    expect(s.rotRad[1]).toBeCloseTo(((-20 * Math.PI) / 180) * Math.sin(Math.PI / 16));
+    expect(s.rotRad[2]).toBeCloseTo((-20 * Math.PI) / 180);
   });
 });
 

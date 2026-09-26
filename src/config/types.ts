@@ -66,13 +66,19 @@ export interface LabFile {
 
 /** 1인칭 손(뷰모델). 좌표는 카메라 기준(+x 오른쪽, +y 위, -z 앞). */
 export interface HandConfig {
-  /** 카메라 기준 손 위치. */
-  restPositionM: Vec3;
-  /** 손 로컬 좌표에서 장비의 grip 점이 붙는 위치(손바닥). */
-  gripAnchorM: Vec3;
+  /** 빈손·한 손으로 들 때 오른손 손바닥 위치. */
+  rightRestM: Vec3;
+  /** 쓰지 않을 때 왼손을 두는 곳(화면 밖 아래). */
+  leftRestM: Vec3;
+  /** 두 손으로 들 때 grip 점들의 가운데가 오는 위치. */
+  twoHandAnchorM: Vec3;
+  /** 손 모델 로컬 좌표의 손바닥 점(오른손 기준, 왼손은 x 반전). */
+  palmOffsetM: Vec3;
+  /** 손이 목표 위치를 따라가는 빠르기(1/s). */
+  handFollowPerS: number;
   /** 집기·놓기가 가능한 거리(카메라에서). */
   reachM: number;
-  /** 집기·놓기 동작 시간. */
+  /** 장비가 손으로/손에서 옮겨지는 시간. */
   transitionS: number;
   rotateStepDeg: number;
   swayMPerPx: number;
@@ -80,4 +86,11 @@ export interface HandConfig {
   swayReturnPerS: number;
   bobAmplitudeM: number;
   bobCyclesPerM: number;
+  /** 집기·놓기 때 손 휘두르기(Minecraft 식). */
+  swing: {
+    durationS: number;
+    grabAtPhase: number;
+    offsetM: Vec3;
+    rotDeg: Vec3;
+  };
 }

@@ -96,7 +96,7 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
   gap: 12px;
 }
 .hold-controls[hidden] { display: none; }
-.hold-controls button { width: 56px; height: 56px; font-size: 26px; }
+.hold-controls button { min-width: 56px; height: 56px; font-size: 22px; }
 .toast {
   position: fixed;
   left: 50%;

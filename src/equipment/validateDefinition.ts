@@ -11,8 +11,12 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
   if (typeof d.asset !== 'string' || d.asset === '') errs.push(`${at}: asset 없음`);
   if (!Array.isArray(d.channels) || !d.channels.every(isChannel)) errs.push(`${at}: channels 오류`);
 
-  const gp = d.grip?.positionM;
-  if (!Array.isArray(gp) || gp.length !== 3 || !gp.every(isNum)) errs.push(`${at}: grip.positionM 오류`);
+  const hold = d.hold;
+  if (!hold || (hold.hands !== 1 && hold.hands !== 2)) errs.push(`${at}: hold.hands 는 1 또는 2`);
+  else if (
+    !Array.isArray(hold.grips) || hold.grips.length !== hold.hands ||
+    !hold.grips.every((g) => Array.isArray(g) && g.length === 3 && g.every(isNum))
+  ) errs.push(`${at}: hold.grips 는 손 수만큼의 [x, y, z]`);
 
   const portIds = new Set<string>();
   for (const p of d.ports ?? []) {

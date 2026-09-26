@@ -6,7 +6,10 @@ export class HoldControls {
   private readonly toast: HTMLDivElement;
   private toastTimer = 0;
 
-  constructor(private readonly hand: Hand) {
+  constructor(
+    private readonly hand: Hand,
+    onDrop: () => void,
+  ) {
     this.bar = document.createElement('div');
     this.bar.className = 'hold-controls';
     const left = document.createElement('button');
@@ -17,7 +20,11 @@ export class HoldControls {
     right.type = 'button';
     right.textContent = '⟳';
     right.addEventListener('click', () => hand.rotateHeld(-1));
-    this.bar.append(left, right);
+    const drop = document.createElement('button');
+    drop.type = 'button';
+    drop.textContent = '놓기';
+    drop.addEventListener('click', onDrop);
+    this.bar.append(drop, left, right);
 
     this.toast = document.createElement('div');
     this.toast.className = 'toast';

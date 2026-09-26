@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
+import { createPlaceholderBox } from '../src/assets/placeholder';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
 import { parseSetup } from '../src/equipment/setup';
@@ -32,7 +33,7 @@ describe('장비 등록', () => {
 
 describe('validateDefinition', () => {
   const good: EquipmentDefinition = {
-    type: 'x', label: 'x', asset: 'x', grip: { positionM: [0, 0.1, 0] }, channels: ['Light'],
+    type: 'x', label: 'x', asset: 'x', hold: { hands: 1, grips: [[0, 0.1, 0]] }, channels: ['Light'],
     ports: [{ id: 'p', channel: 'Light', direction: 'in', positionM: [0, 0, 0] }],
     params: [{ key: 'k', label: 'k', unit: '', min: 0, max: 1, step: 0.1, default: 0.5 }],
     readouts: [],
@@ -46,9 +47,13 @@ describe('validateDefinition', () => {
     const bad = { ...good, params: [{ ...good.params[0], default: 2 }] };
     expect(validateDefinition(bad).join()).toContain('범위 오류');
   });
-  it('grip 이 없으면 오류', () => {
-    const bad = { ...good, grip: undefined } as unknown as EquipmentDefinition;
-    expect(validateDefinition(bad).join()).toContain('grip');
+  it('hold 가 없으면 오류', () => {
+    const bad = { ...good, hold: undefined } as unknown as EquipmentDefinition;
+    expect(validateDefinition(bad).join()).toContain('hold.hands');
+  });
+  it('두 손인데 grip 이 1개면 오류', () => {
+    const bad = { ...good, hold: { hands: 2 as const, grips: [[0, 0, 0] as [number, number, number]] } };
+    expect(validateDefinition(bad).join()).toContain('hold.grips');
   });
   it('알 수 없는 채널 이름이면 오류', () => {
     const bad = { ...good, channels: ['Sound'] } as unknown as EquipmentDefinition;
@@ -91,6 +96,15 @@ describe('장비 간 신호 전달 (test-source → test-probe)', () => {
     m.update(1 / 60);
     m.update(1 / 60);
     expect(probe.readouts.voltageV).toBeNull();
+  });
+  it('장비 바닥 사각형(footprint)은 모델 경계 상자에서: 0.3×0.2 → 반폭 0.15, 0.1', async () => {
+    const m = new EquipmentManager(new THREE.Scene(), registry,
+      { create: async () => createPlaceholderBox([0.3, 0.2, 0.2], '#000') }, new SignalBus(contactRouter(0.02)));
+    await m.load(parseSetup({ version: 1, equipment: [{ id: 'a', type: 'test-source', positionM: [1, 0, 1], rotationYDeg: 45 }] }, registry.definitions));
+    const f = m.get('a')!.footprint;
+    expect(f.hx).toBeCloseTo(0.15);
+    expect(f.hz).toBeCloseTo(0.1);
+    expect(f.cx).toBeCloseTo(0);
   });
   it('저장용 세팅 항목에는 수정된 param 이 들어간다', async () => {
     const { m } = await make(0.15);

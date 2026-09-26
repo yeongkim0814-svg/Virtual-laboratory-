@@ -2,7 +2,7 @@
   "type": "test-source",
   "label": "테스트 신호원 (채널 확인용)",
   "asset": "test-source",
-  "grip": { "positionM": [0, 0.2, 0] },
+  "hold": { "hands": 1, "grips": [[0, 0.2, 0]] },
   "channels": ["Electric"],
   "ports": [
     { "id": "out", "channel": "Electric", "direction": "out", "positionM": [0.15, 0.1, 0] }

@@ -65,17 +65,18 @@
 - `src/player/` — 1인칭 카메라
 - `src/signal/` — channels(채널 목록·Signal 타입), signalBus(포트 위치·채널 기반 라우팅, 채널별 Router 교체 가능)
 - `src/equipment/` — registry(devices/ 자동 수집), equipmentManager(프레임 갱신, 1프레임 지연 전달), setup(세팅 JSON 저장/불러오기), ports(로컬→월드)
-- `src/hand/` — hand(1인칭 손 뷰모델: 집기·들기·놓기 상태, 흔들림), handMath(순수 함수), placement(포트 스냅)
+- `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기·떨어뜨리기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수), placement(포트 스냅), overlap(바닥 사각형 겹침 검사·해소, 분리축)
 - `src/interaction/` — 탭 → 레이캐스트 → 손 동작(닿는 거리 reachM, 놓을 면 = userData.placeSurface)
-- `src/ui/holdControls.ts` — 들고 있을 때 회전 버튼(⟲ ⟳), 안내 메시지
+- `src/ui/holdControls.ts` — 들고 있을 때 놓기(떨어뜨리기)·회전(⟲ ⟳) 버튼, 안내 메시지
+- 떨어뜨리기 낙하: 현재 비물리적 보간. 자유낙하 규칙은 사용자 승인 후 교체(hand.ts TODO)
 - `src/ui/equipmentPanel.ts` — 장비 목록, params 슬라이더 자동 생성, readouts 표시, 저장/불러오기
 - `public/setups/default.json` — 시작 시 불러오는 세팅
 
 ### 새 장비 추가 방법 (기존 코드 수정 없음)
-1. `src/equipment/devices/<type>/definition.json` — type(=폴더 이름), label, asset, grip(손으로 잡는 점), channels, ports, params, readouts
+1. `src/equipment/devices/<type>/definition.json` — type(=폴더 이름), label, asset, hold(hands: 1|2, grips: 손바닥이 닿는 점들), channels, ports, params, readouts
 2. `src/equipment/devices/<type>/behavior.ts` — `export default { type, create: () => ({ update(ctx) {…} }) }`
    - ctx.inputs[포트id] 로 받고, ctx.emit(포트id, 값) 으로 내보내고, ctx.setReadout 으로 표시
-3. `public/assets.json` — assets 에 `"<asset>": null`, placeholders 에 `{ color, sizeM }`
+3. `public/assets.json` — assets 에 `"<asset>": null`, placeholders 에 `{ color, sizeM }` (겹침 검사용 바닥 크기도 여기서 계산됨)
 4. 세팅 JSON(`public/setups/*.json`)에 배치
 - 포트 연결: 같은 채널의 out·in 포트가 lab.json `signal.contactToleranceM` 이내면 연결(접촉 라우터)
 - 손으로 놓을 때 포트가 lab.json `placement.snapRadiusM` 이내면 맞닿도록 자동 정렬(스냅)

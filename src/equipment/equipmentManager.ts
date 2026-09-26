@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/assetRegistry';
+import type { Footprint, FlatPose } from '../hand/overlap';
 import type { Signal } from '../signal/channels';
 import { portKey, SignalBus, type Emission, type PortRef } from '../signal/signalBus';
 import { localToWorld } from './ports';
@@ -16,6 +17,20 @@ export interface EquipmentInstance extends SetupItem {
   object: THREE.Object3D;
   /** 손에 들려 있으면 true. 들린 장비의 포트는 신호 라우팅에서 빠진다. */
   held: boolean;
+  /** 바닥 사각형(장비 로컬). 모델/placeholder 의 경계 상자에서 계산. 겹침 검사용. */
+  footprint: Footprint;
+}
+
+/** 회전·이동 전 객체의 경계 상자 → 바닥 사각형. 비어 있으면 크기 0. */
+export function footprintOf(object: THREE.Object3D): Footprint {
+  const box = new THREE.Box3().setFromObject(object);
+  if (box.isEmpty()) return { cx: 0, cz: 0, hx: 0, hz: 0 };
+  return {
+    cx: (box.min.x + box.max.x) / 2,
+    cz: (box.min.z + box.max.z) / 2,
+    hx: (box.max.x - box.min.x) / 2,
+    hz: (box.max.z - box.min.z) / 2,
+  };
 }
 
 /**
@@ -48,6 +63,7 @@ export class EquipmentManager {
     for (const item of setup.equipment) {
       const def = this.registry.definitions.get(item.type)!;
       const object = await this.assets.create(def.asset);
+      const footprint = footprintOf(object); // 아직 원점·무회전 상태에서 잰다
       object.position.set(...item.positionM);
       object.rotation.y = item.rotationYDeg * DEG;
       object.userData.equipmentId = item.id;
@@ -62,6 +78,7 @@ export class EquipmentManager {
         readouts,
         object,
         held: false,
+        footprint,
       });
     }
   }
@@ -96,6 +113,16 @@ export class EquipmentManager {
   /** 놓여 있는(들리지 않은) 장비들의 포트, 월드 좌표. exceptId 장비는 제외. */
   placedPorts(exceptId?: string): PortRef[] {
     return this.worldPorts().filter((p) => p.deviceId !== exceptId);
+  }
+
+  /** 놓여 있는 장비들의 바닥 사각형·자세 (겹침 검사용). exceptId 장비는 제외. */
+  placedFootprints(exceptId?: string): { footprint: Footprint; pose: FlatPose }[] {
+    return this.instances
+      .filter((i) => !i.held && i.id !== exceptId)
+      .map((i) => ({
+        footprint: i.footprint,
+        pose: { xM: i.positionM[0], zM: i.positionM[2], yawRad: i.rotationYDeg * DEG },
+      }));
   }
 
   /**

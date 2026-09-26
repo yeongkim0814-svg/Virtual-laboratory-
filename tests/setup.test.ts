@@ -7,7 +7,7 @@ const def: EquipmentDefinition = {
   type: 'dev',
   label: 'dev',
   asset: 'dev',
-  grip: { positionM: [0, 0, 0] },
+  hold: { hands: 1, grips: [[0, 0, 0]] },
   channels: ['Electric'],
   ports: [],
   params: [{ key: 'voltageV', label: 'V', unit: 'V', min: 0, max: 12, step: 0.1, default: 5 }],

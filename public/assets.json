@@ -4,7 +4,8 @@
     "wall": null,
     "test-source": null,
     "test-probe": null,
-    "hand": null
+    "hand-right": null,
+    "hand-left": null
   },
   "placeholders": {
     "floor": {
@@ -23,7 +24,11 @@
       "color": "#d19a4a",
       "sizeM": [0.3, 0.2, 0.2]
     },
-    "hand": {
+    "hand-right": {
+      "color": "#e0b899",
+      "sizeM": [0.09, 0.05, 0.18]
+    },
+    "hand-left": {
       "color": "#e0b899",
       "sizeM": [0.09, 0.05, 0.18]
     }

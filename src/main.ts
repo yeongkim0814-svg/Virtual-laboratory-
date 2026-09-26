@@ -51,8 +51,8 @@ async function main(): Promise<void> {
   scene.add(camera); // 손(뷰모델)이 카메라의 자식이므로 카메라도 씬에 넣는다
   const player = new Player(camera, lab);
   const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx, lab.controls);
-  const hand = new Hand(camera, await assets.create('hand'), equipment, lab.hand);
-  const holdControls = new HoldControls(hand);
+  const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
+  const holdControls = new HoldControls(hand, () => interaction.drop());
   const interaction = new Interaction(camera, room, equipment, hand, player, lab, (m) => holdControls.notify(m));
 
   const panel = new EquipmentPanel(equipment, {
