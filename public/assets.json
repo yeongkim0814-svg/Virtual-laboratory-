@@ -40,5 +40,13 @@
     "sunLightColor": "#ffffff",
     "sunLightIntensity": 1.2,
     "sunLightDirection": [0.4, 1.0, 0.3]
+  },
+  "placementPreview": {
+    "validColor": "#43a047",
+    "invalidColor": "#e53935",
+    "cellOpacity": 0.6,
+    "ghostOpacity": 0.4,
+    "cellInsetRatio": 0.85,
+    "cellLiftM": 0.002
   }
 }

@@ -3,6 +3,7 @@
   "label": "테스트 수신기 (채널 확인용)",
   "asset": "test-probe",
   "hold": { "hands": 2, "grips": [[-0.12, 0.2, 0], [0.12, 0.2, 0]] },
+  "footprint": { "radiusM": 0.14 },
   "channels": ["Electric"],
   "ports": [
     { "id": "in", "channel": "Electric", "direction": "in", "positionM": [-0.15, 0.1, 0] }

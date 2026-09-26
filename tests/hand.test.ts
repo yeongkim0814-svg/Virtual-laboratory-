@@ -13,7 +13,7 @@ const registry = loadEquipmentRegistry();
 const cfg: HandConfig = {
   rightRestM: [0.2, -0.3, -0.5], leftRestM: [-0.3, -0.8, -0.5], twoHandAnchorM: [0, -0.4, -0.7],
   palmOffsetM: [0, 0, -0.06], handFollowPerS: 1000, reachM: 2, transitionS: 0.2,
-  rotateStepDeg: 15, swayMPerPx: 0, swayMaxM: 0, swayReturnPerS: 10, bobAmplitudeM: 0, bobCyclesPerM: 1,
+  swayMPerPx: 0, swayMaxM: 0, swayReturnPerS: 10, bobAmplitudeM: 0, bobCyclesPerM: 1,
   swing: { durationS: 0.3, grabAtPhase: 0.35, offsetM: [-0.1, 0.05, -0.08], rotDeg: [-40, -20, -20] },
 };
 const fakeAssets = { create: async () => createPlaceholderBox([0.3, 0.2, 0.2], '#000000') };
@@ -22,13 +22,14 @@ async function setup() {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
   scene.add(camera);
-  const m = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(contactRouter(0.02)));
+  const m = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(contactRouter(0.02)), { cellSizeM: 0.05, room: { widthM: 10, depthM: 10, heightM: 3 } });
   await m.load(parseSetup({
     version: 1,
     equipment: [
       { id: 's', type: 'test-source', positionM: [-0.15, 0, 1], params: { voltageV: 7 } },
       { id: 'p', type: 'test-probe', positionM: [0.15, 0, 1] },
       { id: 'r', type: 'test-source', positionM: [2, 0, 2], rotationYDeg: 30 },
+      { id: 'q', type: 'test-probe', positionM: [-2, 0, -2], rotationYDeg: 180 },
     ],
   }, registry.definitions));
   const right = new THREE.Object3D();
@@ -40,7 +41,7 @@ async function setup() {
       m.update(1 / 60);
     }
   };
-  return { m, hand, run, right, left, probe: m.get('p')!, source: m.get('s')!, rotated: m.get('r')! };
+  return { m, hand, run, right, left, probe: m.get('p')!, source: m.get('s')!, rotated: m.get('r')!, flipped: m.get('q')! };
 }
 
 describe('Hand: 집기', () => {
@@ -87,13 +88,20 @@ describe('Hand: 집기', () => {
     expect(left.position.y).toBeCloseTo(-0.4);
   });
 
-  it('두 손 장비를 180° 돌려도 손이 엇갈리지 않는다', async () => {
-    const { hand, run, probe, right, left } = await setup();
-    hand.pick(probe, 0);
+  it('180° 돌아가 있던 두 손 장비를 집어도 손이 엇갈리지 않는다', async () => {
+    const { hand, run, flipped, right, left } = await setup();
+    hand.pick(flipped, 0);
+    expect(Math.abs(hand.heldYawOffsetRad)).toBeCloseTo(Math.PI);
     run(1);
-    for (let i = 0; i < 12; i++) hand.rotateHeld(1); // 12 × 15° = 180°
+    expect(left.position.x).toBeCloseTo(-0.12);
+    expect(right.position.x).toBeCloseTo(0.12);
+  });
+  it('들고 있는 동안에는 회전할 수 없다(손 기준 각도는 집을 때 값 그대로)', async () => {
+    const { hand, run, rotated } = await setup();
+    hand.pick(rotated, 0);
     run(1);
-    expect(left.position.x).toBeLessThan(right.position.x);
+    expect('rotateHeld' in hand).toBe(false);
+    expect(hand.heldYawOffsetRad).toBeCloseTo(Math.PI / 6);
   });
 
   it('집을 때 보이던 방향 유지: 장비 30°, 플레이어 0° → 손 기준 30°', async () => {

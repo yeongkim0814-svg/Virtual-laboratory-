@@ -3,6 +3,7 @@
   "label": "테스트 신호원 (채널 확인용)",
   "asset": "test-source",
   "hold": { "hands": 1, "grips": [[0, 0.2, 0]] },
+  "footprint": { "radiusM": 0.14 },
   "channels": ["Electric"],
   "ports": [
     { "id": "out", "channel": "Electric", "direction": "out", "positionM": [0.15, 0.1, 0] }

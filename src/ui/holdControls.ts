@@ -1,9 +1,10 @@
 import type { Hand } from '../hand/hand';
 
-/** 장비를 들고 있을 때만 보이는 회전 버튼 + 짧은 안내 메시지. */
+/** 장비를 들고 있을 때만 보이는 놓기 버튼 + 짧은 안내 메시지. (들고 있는 동안 회전은 안 됨) */
 export class HoldControls {
   private readonly bar: HTMLDivElement;
   private readonly toast: HTMLDivElement;
+  private readonly crosshair: HTMLDivElement;
   private toastTimer = 0;
 
   constructor(
@@ -12,24 +13,18 @@ export class HoldControls {
   ) {
     this.bar = document.createElement('div');
     this.bar.className = 'hold-controls';
-    const left = document.createElement('button');
-    left.type = 'button';
-    left.textContent = '⟲';
-    left.addEventListener('click', () => hand.rotateHeld(+1)); // 위에서 보아 반시계 = +yaw
-    const right = document.createElement('button');
-    right.type = 'button';
-    right.textContent = '⟳';
-    right.addEventListener('click', () => hand.rotateHeld(-1));
     const drop = document.createElement('button');
     drop.type = 'button';
     drop.textContent = '놓기';
     drop.addEventListener('click', onDrop);
-    this.bar.append(drop, left, right);
+    this.bar.append(drop);
 
     this.toast = document.createElement('div');
     this.toast.className = 'toast';
     this.toast.hidden = true;
-    document.body.append(this.bar, this.toast);
+    this.crosshair = document.createElement('div');
+    this.crosshair.className = 'crosshair';
+    document.body.append(this.bar, this.toast, this.crosshair);
   }
 
   notify(msg: string): void {
@@ -40,6 +35,8 @@ export class HoldControls {
   }
 
   tick(): void {
-    this.bar.hidden = this.hand.heldInstance === null;
+    const holding = this.hand.heldInstance !== null;
+    this.bar.hidden = !holding;
+    this.crosshair.hidden = !holding;
   }
 }

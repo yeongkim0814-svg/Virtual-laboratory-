@@ -14,6 +14,7 @@ import { EquipmentPanel } from './ui/equipmentPanel';
 import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
 import { HoldControls } from './ui/holdControls';
+import { PlacementPreview } from './interaction/placementPreview';
 
 const MAX_DT_S = 0.1; // 탭 전환 등으로 프레임이 멈췄다 재개될 때 순간이동 방지
 
@@ -44,7 +45,10 @@ async function main(): Promise<void> {
   scene.add(room);
 
   const bus = new SignalBus(contactRouter(lab.signal.contactToleranceM));
-  const equipment = new EquipmentManager(scene, equipmentRegistry, assets, bus);
+  const equipment = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
+    cellSizeM: lab.grid.cellSizeM,
+    room: lab.room,
+  });
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
@@ -53,7 +57,8 @@ async function main(): Promise<void> {
   const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx, lab.controls);
   const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
   const holdControls = new HoldControls(hand, () => interaction.drop());
-  const interaction = new Interaction(camera, room, equipment, hand, player, lab, (m) => holdControls.notify(m));
+  const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
+  const interaction = new Interaction(camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m));
 
   const panel = new EquipmentPanel(equipment, {
     onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems())),
@@ -62,6 +67,7 @@ async function main(): Promise<void> {
         .text()
         .then((text) => {
           const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions);
+          equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
           hand.reset();
           return equipment.load(setup);
         })
@@ -91,6 +97,7 @@ async function main(): Promise<void> {
     player.update(dtS, controls.move, look);
     for (const tap of controls.consumeTaps()) interaction.handleTap(tap);
     hand.update(dtS, look, player.walkedM);
+    interaction.update();
     equipment.update(dtS);
     panel.tick();
     holdControls.tick();

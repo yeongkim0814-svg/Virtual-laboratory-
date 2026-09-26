@@ -18,6 +18,8 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     !hold.grips.every((g) => Array.isArray(g) && g.length === 3 && g.every(isNum))
   ) errs.push(`${at}: hold.grips 는 손 수만큼의 [x, y, z]`);
 
+  if (!isNum(d.footprint?.radiusM) || d.footprint.radiusM <= 0) errs.push(`${at}: footprint.radiusM 은 양수`);
+
   const portIds = new Set<string>();
   for (const p of d.ports ?? []) {
     if (portIds.has(p.id)) errs.push(`${at}: 포트 id 중복 ${p.id}`);

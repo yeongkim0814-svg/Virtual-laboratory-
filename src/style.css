@@ -109,3 +109,18 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
   pointer-events: none;
 }
 .toast[hidden] { display: none; }
+
+/* 화면 중앙 조준점: 들고 있을 때 어디를 바라보는지 표시 */
+.crosshair {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+  z-index: 1;
+}
+.crosshair[hidden] { display: none; }

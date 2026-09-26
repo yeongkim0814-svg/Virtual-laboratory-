@@ -4,6 +4,9 @@
     "depthM": 10,
     "heightM": 3
   },
+  "grid": {
+    "cellSizeM": 0.05
+  },
   "signal": {
     "contactToleranceM": 0.02
   },
@@ -34,7 +37,6 @@
     "handFollowPerS": 18,
     "reachM": 2.0,
     "transitionS": 0.2,
-    "rotateStepDeg": 15,
     "swayMPerPx": 0.0003,
     "swayMaxM": 0.03,
     "swayReturnPerS": 10,
@@ -46,8 +48,5 @@
       "offsetM": [-0.1, 0.05, -0.08],
       "rotDeg": [-40, -20, -20]
     }
-  },
-  "placement": {
-    "snapRadiusM": 0.1
   }
 }

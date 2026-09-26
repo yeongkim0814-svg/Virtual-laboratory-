@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/assetRegistry';
-import type { Footprint, FlatPose } from '../hand/overlap';
+import type { RoomSize } from '../config/types';
+import {
+  cellKey, cellToWorld, checkCells, circleOffsets, footprintCells, worldToCell, type Cell,
+} from '../grid/grid';
 import type { Signal } from '../signal/channels';
 import { portKey, SignalBus, type Emission, type PortRef } from '../signal/signalBus';
 import { localToWorld } from './ports';
@@ -17,20 +20,20 @@ export interface EquipmentInstance extends SetupItem {
   object: THREE.Object3D;
   /** 손에 들려 있으면 true. 들린 장비의 포트는 신호 라우팅에서 빠진다. */
   held: boolean;
-  /** 바닥 사각형(장비 로컬). 모델/placeholder 의 경계 상자에서 계산. 겹침 검사용. */
-  footprint: Footprint;
+  /** 밑넓이 원의 셀 오프셋(중심 셀 기준). 정의의 footprint.radiusM 과 격자 크기에서 계산. */
+  footprintOffsets: Cell[];
 }
 
-/** 회전·이동 전 객체의 경계 상자 → 바닥 사각형. 비어 있으면 크기 0. */
-export function footprintOf(object: THREE.Object3D): Footprint {
-  const box = new THREE.Box3().setFromObject(object);
-  if (box.isEmpty()) return { cx: 0, cz: 0, hx: 0, hz: 0 };
-  return {
-    cx: (box.min.x + box.max.x) / 2,
-    cz: (box.min.z + box.max.z) / 2,
-    hx: (box.max.x - box.min.x) / 2,
-    hz: (box.max.z - box.min.z) / 2,
-  };
+export interface GridConfig {
+  cellSizeM: number;
+  room: RoomSize;
+}
+
+/** -180 < deg ≤ 180 로 정규화, 소수 둘째 자리까지. */
+export function normalizeDeg(deg: number): number {
+  let d = ((deg % 360) + 360) % 360;
+  if (d > 180) d -= 360;
+  return Math.round(d * 100) / 100 + 0;
 }
 
 /**
@@ -51,19 +54,22 @@ export class EquipmentManager {
     private readonly registry: EquipmentRegistry,
     private readonly assets: Pick<AssetRegistry, 'create'>,
     private readonly bus: SignalBus,
+    readonly grid: GridConfig,
   ) {
     scene.add(this.group);
   }
 
-  /** 현재 장비를 모두 지우고 세팅을 불러온다. */
+  /**
+   * 현재 장비를 모두 지우고 세팅을 불러온다.
+   * 위치는 가장 가까운 셀 중심으로 맞춘다. 밑넓이가 방 밖이거나 서로 겹치면 오류(아무것도 바꾸지 않음).
+   */
   async load(setup: SetupFile): Promise<void> {
+    const placed = this.validate(setup);
     this.group.clear();
     this.instances.length = 0;
     this.pending = [];
-    for (const item of setup.equipment) {
-      const def = this.registry.definitions.get(item.type)!;
+    for (const { item, def, offsets } of placed) {
       const object = await this.assets.create(def.asset);
-      const footprint = footprintOf(object); // 아직 원점·무회전 상태에서 잰다
       object.position.set(...item.positionM);
       object.rotation.y = item.rotationYDeg * DEG;
       object.userData.equipmentId = item.id;
@@ -78,9 +84,31 @@ export class EquipmentManager {
         readouts,
         object,
         held: false,
-        footprint,
+        footprintOffsets: offsets,
       });
     }
+  }
+
+  /**
+   * 세팅을 격자에 맞춰 검사한다(상태는 바꾸지 않음). 위치는 가장 가까운 셀 중심으로 맞춘 값을 돌려준다.
+   * 밑넓이가 방 밖에 걸치거나 장비끼리 셀이 겹치면 오류.
+   */
+  validate(setup: SetupFile): { item: SetupItem; def: EquipmentDefinition; offsets: Cell[] }[] {
+    const { cellSizeM, room } = this.grid;
+    const occupied = new Set<string>();
+    return setup.equipment.map((item) => {
+      const def = this.registry.definitions.get(item.type)!;
+      const offsets = circleOffsets(def.footprint.radiusM, cellSizeM);
+      const cell = worldToCell(item.positionM[0], item.positionM[2], cellSizeM);
+      const cells = footprintCells(cell, offsets);
+      const check = checkCells(cells, occupied, cellSizeM, room);
+      if (!check.ok) {
+        throw new Error(`세팅: ${item.id} ${check.reason === 'outside' ? '이(가) 방 밖에 걸침' : '이(가) 다른 장비와 겹침'}`);
+      }
+      for (const c of cells) occupied.add(cellKey(c));
+      const [x, z] = cellToWorld(cell, cellSizeM);
+      return { item: { ...item, positionM: [x, item.positionM[1], z] as [number, number, number], rotationYDeg: normalizeDeg(item.rotationYDeg) }, def, offsets };
+    });
   }
 
   get(id: string): EquipmentInstance | undefined {
@@ -107,7 +135,7 @@ export class EquipmentManager {
     const inst = this.get(id);
     if (!inst) throw new Error(`장비 없음: ${id}`);
     inst.positionM = [...positionM];
-    inst.rotationYDeg = rotationYDeg;
+    inst.rotationYDeg = normalizeDeg(rotationYDeg);
   }
 
   /** 놓여 있는(들리지 않은) 장비들의 포트, 월드 좌표. exceptId 장비는 제외. */
@@ -115,14 +143,24 @@ export class EquipmentManager {
     return this.worldPorts().filter((p) => p.deviceId !== exceptId);
   }
 
-  /** 놓여 있는 장비들의 바닥 사각형·자세 (겹침 검사용). exceptId 장비는 제외. */
-  placedFootprints(exceptId?: string): { footprint: Footprint; pose: FlatPose }[] {
-    return this.instances
-      .filter((i) => !i.held && i.id !== exceptId)
-      .map((i) => ({
-        footprint: i.footprint,
-        pose: { xM: i.positionM[0], zM: i.positionM[2], yawRad: i.rotationYDeg * DEG },
-      }));
+  /** 놓여 있는(들리지 않은) 장비가 차지한 셀들. exceptId 장비는 제외. */
+  occupiedCells(exceptId?: string): Set<string> {
+    const out = new Set<string>();
+    for (const i of this.instances) {
+      if (i.held || i.id === exceptId) continue;
+      const center = worldToCell(i.positionM[0], i.positionM[2], this.grid.cellSizeM);
+      for (const c of footprintCells(center, i.footprintOffsets)) out.add(cellKey(c));
+    }
+    return out;
+  }
+
+  /** 놓인 장비의 각도 변경(밑넓이가 원이라 차지 셀은 그대로). 들고 있으면 false. */
+  setRotation(id: string, deg: number): boolean {
+    const inst = this.get(id);
+    if (!inst || inst.held) return false;
+    inst.rotationYDeg = normalizeDeg(deg);
+    inst.object.rotation.y = inst.rotationYDeg * DEG;
+    return true;
   }
 
   /**

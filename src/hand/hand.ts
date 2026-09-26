@@ -4,10 +4,15 @@ import type { EquipmentInstance, EquipmentManager } from '../equipment/equipment
 import {
   assignHands, bobOffsetM, heldLocalPosition, smoothstep, swayStep, swingPose, wrapAngleRad, type SwayState,
 } from './handMath';
-import type { PlacementPose } from './placement';
 
 const DEG = Math.PI / 180;
-/** 들고 있는 동안 회전 버튼 등으로 바뀐 자세를 따라가는 빠르기(1/s). */
+
+/** 장비를 놓을 월드 자세(원점 = 장비 바닥 중앙). */
+export interface PlacementPose {
+  positionM: Vec3;
+  yawRad: number;
+}
+/** 들고 있는 동안 목표 자세를 따라가는 빠르기(1/s). */
 const HOLD_FOLLOW_PER_S = 20;
 const Y_AXIS = new THREE.Vector3(0, 1, 0);
 
@@ -66,7 +71,10 @@ export class Hand {
     return this.state.kind === 'holding' ? this.state.inst : null;
   }
 
-  /** 손 기준 회전 → 내려놓을 때 플레이어 yaw 에 더해진다. */
+  /**
+   * 손 기준 회전(집을 때 정해지고, 들고 있는 동안은 바꿀 수 없다).
+   * 놓을 때 플레이어 yaw 에 더해진다. 각도 조정은 놓은 뒤 패널 슬라이더로.
+   */
   get heldYawOffsetRad(): number {
     return this.heldYawRad;
   }
@@ -89,11 +97,6 @@ export class Hand {
     if (this.state.kind !== 'holding') return;
     const inst = this.state.inst;
     this.state = { kind: 'dropping', inst, move: this.detach(inst), pose };
-  }
-
-  rotateHeld(steps: number): void {
-    if (this.state.kind !== 'holding') return;
-    this.heldYawRad = wrapAngleRad(this.heldYawRad + steps * this.cfg.rotateStepDeg * DEG);
   }
 
   /** 세팅을 새로 불러올 때: 손에 있던 것을 버린다(장비 객체는 매니저가 새로 만든다). */

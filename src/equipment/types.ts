@@ -38,6 +38,11 @@ export interface EquipmentDefinition {
    * 두 손이면 두 점 중 왼쪽에 있는 점을 왼손이 잡는다.
    */
   hold: { hands: 1 | 2; grips: Vec3[] };
+  /**
+   * 밑넓이 = 격자로 표현한 원. 장비 중심에서 셀 중심까지 거리 ≤ radiusM 인 셀을 차지한다.
+   * 원이라서 회전해도 차지하는 셀이 같다.
+   */
+  footprint: { radiusM: number };
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];

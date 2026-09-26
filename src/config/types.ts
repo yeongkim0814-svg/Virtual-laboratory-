@@ -26,6 +26,19 @@ export interface AssetsFile {
   /** model 이 null 일 때 쓰는 placeholder 의 외형. */
   placeholders: Record<string, PlaceholderStyle>;
   environment: EnvironmentSpec;
+  placementPreview: PlacementPreviewStyle;
+}
+
+/** 배치 미리보기(반투명 장비 + 밑넓이 셀) 외형. */
+export interface PlacementPreviewStyle {
+  validColor: string;
+  invalidColor: string;
+  cellOpacity: number;
+  ghostOpacity: number;
+  /** 셀 표시 사각형 크기 / 셀 크기 (셀 사이 틈이 보이게). */
+  cellInsetRatio: number;
+  /** 바닥과 겹쳐 깜박이지 않게 셀 표시를 띄우는 높이. */
+  cellLiftM: number;
 }
 
 export interface RoomSize {
@@ -36,6 +49,8 @@ export interface RoomSize {
 
 export interface LabFile {
   room: RoomSize;
+  /** 장비 배치 격자. 셀 중심 = (k·cellSizeM), 방 중심이 셀 (0,0) 중심. */
+  grid: { cellSizeM: number };
   signal: {
     /** 출력·입력 포트가 이 거리 이하면 연결된 것으로 본다. */
     contactToleranceM: number;
@@ -58,10 +73,6 @@ export interface LabFile {
     tapMaxDurationS: number;
   };
   hand: HandConfig;
-  placement: {
-    /** 포트가 이 거리 이내면 맞닿도록 자동 정렬. */
-    snapRadiusM: number;
-  };
 }
 
 /** 1인칭 손(뷰모델). 좌표는 카메라 기준(+x 오른쪽, +y 위, -z 앞). */
@@ -80,7 +91,6 @@ export interface HandConfig {
   reachM: number;
   /** 장비가 손으로/손에서 옮겨지는 시간. */
   transitionS: number;
-  rotateStepDeg: number;
   swayMPerPx: number;
   swayMaxM: number;
   swayReturnPerS: number;
