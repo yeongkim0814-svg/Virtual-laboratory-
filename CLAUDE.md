@@ -78,6 +78,7 @@
 - `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)
 - `src/equipment/footprint.ts` — 모델이 내접하는 밑면 원 반지름(모델 꼭짓점 중 수직축에서 가장 먼 수평 거리)
 - `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)
+  두 손 장비는 집을 때 grip 을 잇는 선이 몸 좌우와 나란하도록 손 안에서 돈다(두 손 겹침 방지)
 - `src/interaction/` — interaction(탭으로 집기, 화면 중앙 시선으로 배치 후보, 탭으로 놓기), placementPreview(반투명 장비 + 밑넓이 셀)
 - `src/ui/holdControls.ts` — 들고 있을 때 조준점, 안내 메시지
 - 가구(lab.json furniture): 테이블 윗면, 찬장(문 없는 선반형 보관함, 이웃한 두 벽) 선반 = 장비를 놓는 면.
