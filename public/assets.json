@@ -1,0 +1,18 @@
+{
+  "assets": {
+    "floor": null,
+    "wall": null
+  },
+  "placeholders": {
+    "floor": { "color": "#9aa0a6", "thicknessM": 0.05 },
+    "wall": { "color": "#c9ccd1", "thicknessM": 0.1 }
+  },
+  "environment": {
+    "backgroundColor": "#1e2126",
+    "ambientLightColor": "#ffffff",
+    "ambientLightIntensity": 0.6,
+    "sunLightColor": "#ffffff",
+    "sunLightIntensity": 1.2,
+    "sunLightDirection": [0.4, 1.0, 0.3]
+  }
+}

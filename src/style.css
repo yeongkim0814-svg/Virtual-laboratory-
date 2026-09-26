@@ -1,0 +1,47 @@
+/* 2D UI 최소 스타일. 3D 시각 요소는 assets.json 에서만 정의한다. */
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  background: #000;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}
+canvas { display: block; touch-action: none; }
+
+#fps {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+}
+
+/* 조이스틱: 왼쪽 화면을 터치한 지점에 나타난다. 크기는 lab.json 의 반지름으로 설정. */
+.joystick-base {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  display: none;
+}
+.joystick-base.active { display: block; }
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%);
+}

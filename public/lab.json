@@ -1,0 +1,16 @@
+{
+  "room": { "widthM": 10, "depthM": 10, "heightM": 3 },
+  "player": {
+    "startPositionM": [0, 0, 3],
+    "startYawDeg": 0,
+    "eyeHeightM": 1.6,
+    "radiusM": 0.3,
+    "walkSpeedMPerS": 1.5
+  },
+  "camera": { "fovDeg": 70, "nearM": 0.05, "farM": 100 },
+  "controls": {
+    "joystickRadiusPx": 60,
+    "lookSensitivityRadPerPx": 0.005,
+    "maxPitchDeg": 85
+  }
+}
