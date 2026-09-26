@@ -37,6 +37,22 @@ export class AssetRegistry {
     }
   }
 
+  /**
+   * 여러 부품으로 된 에셋(가구 등). 모델이 있으면 모델 하나, 없으면 부품마다 placeholder 상자.
+   * 부품 좌표 = 에셋 로컬(원점 바닥 중앙), 각 상자 원점도 바닥 중앙.
+   */
+  async createAssembly(name: string, parts: readonly { positionM: [number, number, number]; sizeM: [number, number, number] }[]): Promise<THREE.Object3D> {
+    if (!(name in this.file.assets)) throw new Error(`assets.json 에 없는 에셋: ${name}`);
+    if (this.file.assets[name] !== null) return this.create(name);
+    const group = new THREE.Group();
+    for (const p of parts) {
+      const box = this.placeholder(name, p.sizeM);
+      box.position.set(...p.positionM);
+      group.add(box);
+    }
+    return group;
+  }
+
   /** placeholder 두께(판 형태 에셋용). */
   thicknessM(name: string): number {
     const t = this.style(name).thicknessM;

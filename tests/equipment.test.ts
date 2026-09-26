@@ -190,8 +190,9 @@ describe('장비 간 신호 전달·배치 (케이블, 격자)', () => {
   });
 });
 
-describe('테이블 위 배치·찬장에서 꺼내기/넣기', () => {
-  const table = { id: 't', type: 'table' as const, positionM: [0, 0, 1] as [number, number, number], rotationYDeg: 0, sizeM: [1.6, 0.75, 0.8] as [number, number, number] };
+describe('테이블·찬장 선반 배치', () => {
+  const table = { id: 't', type: 'table' as const, positionM: [0, 0, 1] as [number, number, number], rotationYDeg: 0, sizeM: [1.6, 0.75, 0.8] as [number, number, number], topThicknessM: 0.04, legSizeM: 0.06 };
+  const shelf = (shelves: number) => ({ id: 'c', type: 'cupboard' as const, positionM: [0, 0, -4.75] as [number, number, number], rotationYDeg: 0, sizeM: [4, 1.8, 0.5] as [number, number, number], shelves, panelThicknessM: 0.02 });
   const surfaces = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [table], 0.05);
   const newM = () => {
     const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
@@ -215,21 +216,22 @@ describe('테이블 위 배치·찬장에서 꺼내기/넣기', () => {
   it('테이블 밑 바닥에는 못 놓는다 / 놓일 면이 없는 높이는 오류', async () => {
     await expect(newM().validate(at(0, 0))).rejects.toThrow('면 밖');
     await expect(newM().validate(at(3, 0.4))).rejects.toThrow('놓일 면');
+    expect(newM().grid.surfaces.get('t')!.clearHeightM).toBe(Infinity);
   });
-  it('spawn: 새 id, 기본 params, 아직 면 없음(저장에서 빠짐) / remove: 케이블도 뽑힘', async () => {
-    const m = newM();
-    await m.load(parseSetup({ version: 2, equipment: [
-      { id: 'test-source-1', type: 'test-source', positionM: [-0.3, 0.75, 1] },
-      { id: 'p', type: 'test-probe', positionM: [0.3, 0.75, 1] },
-    ], cables: [{ from: { deviceId: 'test-source-1', portId: 'out' }, to: { deviceId: 'p', portId: 'in' } }] }, registry.definitions));
-    const s = await m.spawn('test-source', [-2, 0.9, 1], 90);
-    expect(s.id).toBe('test-source-2');
-    expect(s.params.voltageV).toBe(5);
-    expect(s.surfaceId).toBeNull();
-    expect(m.toSetupItems().map((i) => i.id)).toEqual(['test-source-1', 'p']);
-    m.remove('test-source-1');
-    expect(m.cables).toHaveLength(0);
-    expect(m.instances.map((i) => i.id)).toEqual(['p', 'test-source-2']);
+  it('찬장 선반(칸 4개, 높이 0.02·0.465·0.91·1.355)에 놓인다: 면 = 찬장/칸 번호', async () => {
+    const surf = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [shelf(4)], 0.05);
+    const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
+      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0,
+    });
+    await m.load(at(0, 0.91, -4.75));
+    expect(m.get('a')!.surfaceId).toBe('c/3');
+  });
+  it('선반 사이 빈 높이보다 큰 장비는 못 놓는다: 칸 10개 → (1.8 − 0.02)/10 − 0.02 = 0.158 < 장비 0.2', async () => {
+    const surf = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [shelf(10)], 0.05);
+    const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
+      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0,
+    });
+    await expect(m.validate(at(0, 0.02, -4.75))).rejects.toThrow('선반 사이 높이');
   });
 });
 

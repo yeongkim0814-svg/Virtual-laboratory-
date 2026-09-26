@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import type { AssetRegistry } from '../assets/assetRegistry';
-import type { Vec3 } from '../config/types';
 import type { Surfaces } from '../room/surfaces';
 import {
   cellKey, cellToWorld, checkCells, circleOffsets, footprintCells, worldToCell, type Cell,
@@ -29,7 +28,9 @@ export interface EquipmentInstance extends SetupItem {
   footprintOffsets: Cell[];
   /** 모델이 내접하는 밑면 원의 반지름. */
   footprintRadiusM: number;
-  /** 놓인 면(바닥·테이블 id). 찬장에서 막 꺼내 옮기는 중이면 null. */
+  /** 모델 높이(선반 사이 빈 높이와 비교). */
+  heightM: number;
+  /** 놓인 면(바닥·테이블·선반 id). 어느 면에도 없으면 null. */
   surfaceId: string | null;
 }
 
@@ -71,8 +72,8 @@ export class EquipmentManager {
   readonly instances: EquipmentInstance[] = [];
   cables: Cable[] = [];
   private pending: Emission[] = [];
-  /** 장비 종류 → 밑넓이(모델에서 한 번 계산). */
-  private readonly footprintByType = new Map<string, { radiusM: number; offsets: Cell[] }>();
+  /** 장비 종류 → 밑넓이·높이(모델에서 한 번 계산). */
+  private readonly footprintByType = new Map<string, { radiusM: number; offsets: Cell[]; heightM: number }>();
   /** 놓여 있는 장비의 3D 객체가 들어가는 그룹(월드 좌표). */
   readonly group = new THREE.Group();
   readonly grid: GridConfig;
@@ -111,10 +112,11 @@ export class EquipmentManager {
     const out: { item: SetupItem; def: EquipmentDefinition; surfaceId: string }[] = [];
     for (const item of setup.equipment) {
       const def = this.registry.definitions.get(item.type)!;
-      const { offsets } = await this.footprintFor(def);
+      const { offsets, heightM } = await this.footprintFor(def);
       const [px, py, pz] = item.positionM;
       const surfaceId = surfaces.surfaceAt(px, py, pz);
-      if (!surfaceId) throw new Error(`세팅: ${item.id} 이(가) 놓일 면(바닥·테이블 윗면)이 없음`);
+      if (!surfaceId) throw new Error(`세팅: ${item.id} 이(가) 놓일 면(바닥·테이블 윗면·선반)이 없음`);
+      if (heightM > surfaces.get(surfaceId)!.clearHeightM) throw new Error(`세팅: ${item.id} 이(가) 선반 사이 높이보다 큼`);
       const cell = worldToCell(px, pz, cellSizeM);
       const cells = footprintCells(cell, offsets);
       const occ = occupied.get(surfaceId) ?? new Set<string>();
@@ -163,28 +165,6 @@ export class EquipmentManager {
     inst.surfaceId = this.grid.surfaces.surfaceAt(...inst.positionM) ?? null;
   }
 
-  /**
-   * 새 장비를 만든다(찬장에서 꺼낼 때). 아직 어느 면에도 놓이지 않은 상태(surfaceId = null)로,
-   * 호출자가 곧바로 손에 쥐어 준다.
-   */
-  async spawn(type: string, positionM: Vec3, rotationYDeg: number): Promise<EquipmentInstance> {
-    const def = this.registry.definitions.get(type);
-    if (!def) throw new Error(`알 수 없는 장비 종류: ${type}`);
-    let n = 1;
-    while (this.get(`${type}-${n}`)) n++;
-    const params = Object.fromEntries(def.params.map((p) => [p.key, p.default]));
-    return this.addInstance({ id: `${type}-${n}`, type, positionM: [...positionM], rotationYDeg, params }, def, null);
-  }
-
-  /** 장비를 없앤다(찬장에 넣을 때). 꽂혀 있던 케이블도 뽑는다. */
-  remove(id: string): void {
-    const inst = this.get(id);
-    if (!inst) return;
-    for (const p of inst.def.ports) this.disconnect({ deviceId: id, portId: p.id });
-    inst.object.removeFromParent();
-    this.instances.splice(this.instances.indexOf(inst), 1);
-  }
-
   /** 이 면에 놓여 있는(들리지 않은) 장비가 차지한 셀들. exceptId 장비는 제외. */
   occupiedCells(surfaceId: string, exceptId?: string): Set<string> {
     const out = new Set<string>();
@@ -229,10 +209,10 @@ export class EquipmentManager {
 
   /**
    * 현재 상태를 세팅 항목으로 (저장용).
-   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다. 찬장에서 막 꺼낸 장비(면 없음)는 빠진다.
+   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다.
    */
   toSetupItems(): SetupItem[] {
-    return this.instances.filter((i) => i.surfaceId !== null).map(({ id, type, positionM, rotationYDeg, params }) => ({
+    return this.instances.map(({ id, type, positionM, rotationYDeg, params }) => ({
       id, type, positionM, rotationYDeg, params,
     }));
   }
@@ -270,7 +250,7 @@ export class EquipmentManager {
   // ── 내부 ──
 
   private async addInstance(item: SetupItem, def: EquipmentDefinition, surfaceId: string | null): Promise<EquipmentInstance> {
-    const { offsets, radiusM } = await this.footprintFor(def);
+    const { offsets, radiusM, heightM } = await this.footprintFor(def);
     const object = await this.assets.create(def.asset);
     object.position.set(...item.positionM);
     object.rotation.y = item.rotationYDeg * DEG;
@@ -290,6 +270,7 @@ export class EquipmentManager {
       held: false,
       footprintOffsets: offsets,
       footprintRadiusM: radiusM,
+      heightM,
       surfaceId,
     };
     this.instances.push(inst);
@@ -300,11 +281,14 @@ export class EquipmentManager {
     portLookup((id) => this.get(id)?.type, this.registry.definitions)(addr);
 
   /** 모델이 내접하는 원의 반지름 → 격자 원. 종류별로 한 번만(모델을 하나 만들어 잰다). */
-  private async footprintFor(def: EquipmentDefinition): Promise<{ radiusM: number; offsets: Cell[] }> {
+  private async footprintFor(def: EquipmentDefinition): Promise<{ radiusM: number; offsets: Cell[]; heightM: number }> {
     let f = this.footprintByType.get(def.type);
     if (!f) {
-      const radiusM = inscribingRadiusM(await this.assets.create(def.asset));
-      f = { radiusM, offsets: circleOffsets(radiusM, this.grid.cellSizeM) };
+      const model = await this.assets.create(def.asset);
+      const radiusM = inscribingRadiusM(model);
+      const box = new THREE.Box3().setFromObject(model);
+      const heightM = box.isEmpty() ? 0 : box.max.y - Math.min(box.min.y, 0);
+      f = { radiusM, offsets: circleOffsets(radiusM, this.grid.cellSizeM), heightM };
       this.footprintByType.set(def.type, f);
     }
     return f;

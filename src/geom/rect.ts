@@ -69,19 +69,29 @@ export function segmentHitsRect(r: Rect, ax: number, az: number, bx: number, bz:
   return slab(x0, x1 - x0, r.hxM) && slab(z0, z1 - z0, r.hzM);
 }
 
+/**
+ * 허용된 변(0 = +x, 1 = −x, 2 = +z, 3 = −z) 위에서 점 (x, z) 에 가장 가까운 점과, 그 변의 바깥 방향(월드).
+ * 점이 사각형 안이면 가장 가까운 변, 밖이면 사각형 경계에서 가장 가까운 점(허용된 변 중에서).
+ */
+export function closestOnEdges(
+  r: Rect, x: number, z: number, sides: readonly number[] = [0, 1, 2, 3],
+): { pointM: [number, number]; outward: [number, number] } {
+  const [lx, lz] = toLocal(r, x, z);
+  const edges: { p: [number, number]; n: [number, number] }[] = [
+    { p: [r.hxM, clamp(lz, r.hzM)], n: [1, 0] },
+    { p: [-r.hxM, clamp(lz, r.hzM)], n: [-1, 0] },
+    { p: [clamp(lx, r.hxM), r.hzM], n: [0, 1] },
+    { p: [clamp(lx, r.hxM), -r.hzM], n: [0, -1] },
+  ];
+  const best = sides
+    .map((i) => edges[i])
+    .reduce((a, b) => (Math.hypot(b.p[0] - lx, b.p[1] - lz) < Math.hypot(a.p[0] - lx, a.p[1] - lz) ? b : a));
+  return { pointM: toWorld(r, best.p[0], best.p[1]), outward: toWorld({ ...r, xM: 0, zM: 0 }, best.n[0], best.n[1]) };
+}
+
 /** 사각형 안의 점에서 가장 가까운 변 위의 점과, 그 변의 바깥 방향 단위벡터(월드). */
 export function nearestEdge(r: Rect, x: number, z: number): { pointM: [number, number]; outward: [number, number] } {
-  const [lx, lz] = toLocal(r, x, z);
-  const cand: { d: number; p: [number, number]; n: [number, number] }[] = [
-    { d: r.hxM - lx, p: [r.hxM, clamp(lz, r.hzM)], n: [1, 0] },
-    { d: r.hxM + lx, p: [-r.hxM, clamp(lz, r.hzM)], n: [-1, 0] },
-    { d: r.hzM - lz, p: [clamp(lx, r.hxM), r.hzM], n: [0, 1] },
-    { d: r.hzM + lz, p: [clamp(lx, r.hxM), -r.hzM], n: [0, -1] },
-  ];
-  const best = cand.reduce((a, b) => (b.d < a.d ? b : a));
-  const pw = toWorld(r, best.p[0], best.p[1]);
-  const o = toWorld({ ...r, xM: 0, zM: 0 }, best.n[0], best.n[1]);
-  return { pointM: pw, outward: o };
+  return closestOnEdges(r, x, z);
 }
 
 /** 반지름 radiusM 원(플레이어)이 사각형과 겹치면 가장 가까운 바깥으로 밀어낸다(넓힌 사각형 근사). */

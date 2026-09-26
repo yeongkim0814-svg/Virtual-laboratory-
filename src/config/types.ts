@@ -59,18 +59,34 @@ export interface RoomSize {
 }
 
 /**
- * 가구(방 구성, 고정). sizeM = [폭 x, 높이 y, 깊이 z], 원점 = 바닥 중앙.
- * 모양은 assets.json 의 type 이름 에셋(없으면 이 크기의 상자). 모델을 바꿔도 sizeM 이
- * 기능(테이블 윗면 높이·넓이, 찬장 자리)을 정하므로 모델과 크기를 맞춰야 한다.
+ * 가구(방 구성, 고정). sizeM = [폭 x, 높이 y, 깊이 z], 원점 = 바닥 중앙, 로컬 +z = 앞.
+ * 모양은 assets.json 의 type 이름 에셋(없으면 아래 치수로 만든 단순 부품들).
+ * 모델을 바꿔도 여기 치수가 기능(윗면·선반 높이, 다리 자리)을 정하므로 모델과 맞춰야 한다.
  */
-export interface FurnitureDef {
+export type FurnitureDef = TableDef | CupboardDef;
+
+interface FurnitureBase {
   id: string;
-  type: 'table' | 'cupboard';
   positionM: Vec3;
   rotationYDeg: number;
   sizeM: Vec3;
-  /** 찬장: 처음 들어 있는 장비 종류 → 개수. */
-  stock?: Record<string, number>;
+}
+
+export interface TableDef extends FurnitureBase {
+  type: 'table';
+  /** 상판 두께. */
+  topThicknessM: number;
+  /** 다리 한 변(정사각 단면, 네 모서리). 바닥 케이블은 다리만 피해 테이블 밑을 지난다. */
+  legSizeM: number;
+}
+
+/** 문 없는 선반형 보관함. 선반마다 장비를 놓을 수 있다. */
+export interface CupboardDef extends FurnitureBase {
+  type: 'cupboard';
+  /** 선반 칸 수(맨 아래 바닥판 포함). */
+  shelves: number;
+  /** 옆·뒤·위 판과 선반 판 두께. */
+  panelThicknessM: number;
 }
 
 export interface LabFile {

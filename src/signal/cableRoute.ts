@@ -9,7 +9,7 @@
 //   지나지 않는 가장 먼 바닥 점까지 비스듬히 늘어뜨린 뒤 바닥에서 잇는다
 
 import type { RoomSize, Vec3 } from '../config/types';
-import { nearestEdge, pointInRect, segmentHitsRect, toLocal, toWorld, type Rect } from '../geom/rect';
+import { closestOnEdges, pointInRect, segmentHitsRect, type Rect } from '../geom/rect';
 import { cellInsideRoom, cellKey, cellToWorld, worldToCell, type Cell } from '../grid/grid';
 
 export interface Circle {
@@ -25,6 +25,8 @@ export interface Plane {
   region: Rect | null;
   circles: Circle[];
   boxes: Rect[];
+  /** 케이블이 넘어 나갈 수 있는 변(0 = +x, 1 = −x, 2 = +z, 3 = −z). 없으면 네 변 모두. 선반은 앞만. */
+  openSides?: number[];
 }
 
 export interface CableEnd {
@@ -123,8 +125,8 @@ export function routeCable(a: CableEnd, b: CableEnd, planes: readonly Plane[], c
   }
 
   // 다른 면: 테이블 쪽 끝은 가장자리 후보 2개(가장 가까운 변 / 상대 쪽을 향한 변) 중 짧은 경로
-  const ea = pa.region ? edgeCandidates(pa.region, sa.exit, sb.exit) : [null];
-  const eb = pb.region ? edgeCandidates(pb.region, sb.exit, sa.exit) : [null];
+  const ea = pa.region ? edgeCandidates(pa, sa.exit, sb.exit) : [null];
+  const eb = pb.region ? edgeCandidates(pb, sb.exit, sa.exit) : [null];
   let best: CableRoute | null = null;
   for (const x of ea) {
     for (const y of eb) {
@@ -144,23 +146,11 @@ function finish(pts: Vec3[], cfg: RouteConfig): CableRoute | null {
   return lengthM <= cfg.maxLengthM + EPS ? { pointsM, lengthM } : null;
 }
 
-/** 가장자리 후보: 출구에서 가장 가까운 변 위의 점, 상대 쪽 목표에 가장 가까운 변 위의 점. */
-function edgeCandidates(r: Rect, exit: [number, number], target: [number, number]): Edge[] {
-  const a = nearestEdge(r, exit[0], exit[1]);
-  const b = boundaryToward(r, target);
+/** 가장자리 후보(나갈 수 있는 변 위): 출구에서 가장 가까운 점, 상대 쪽 목표에 가장 가까운 점. */
+function edgeCandidates(pl: Plane, exit: [number, number], target: [number, number]): Edge[] {
+  const a = closestOnEdges(pl.region!, exit[0], exit[1], pl.openSides);
+  const b = closestOnEdges(pl.region!, target[0], target[1], pl.openSides);
   return Math.hypot(a.pointM[0] - b.pointM[0], a.pointM[1] - b.pointM[1]) < 1e-4 ? [a] : [a, b];
-}
-
-/** 사각형 밖의 점 → 사각형 경계에서 가장 가까운 점(과 바깥 방향). 안이면 가장 가까운 변. */
-function boundaryToward(r: Rect, target: [number, number]): Edge {
-  const [lx, lz] = toLocal(r, target[0], target[1]);
-  const ox = Math.abs(lx) - r.hxM;
-  const oz = Math.abs(lz) - r.hzM;
-  if (ox <= 0 && oz <= 0) return nearestEdge(r, target[0], target[1]);
-  const cx = Math.max(-r.hxM, Math.min(r.hxM, lx));
-  const cz = Math.max(-r.hzM, Math.min(r.hzM, lz));
-  const n: [number, number] = ox >= oz ? [Math.sign(lx), 0] : [0, Math.sign(lz)];
-  return { pointM: toWorld(r, cx, cz), outward: toWorld({ ...r, xM: 0, zM: 0 }, n[0], n[1]) };
 }
 
 /**

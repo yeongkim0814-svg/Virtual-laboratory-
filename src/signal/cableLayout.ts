@@ -3,7 +3,7 @@ import type { LabFile } from '../config/types';
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
 import { addressKey, type Cable, type PortAddress } from './cables';
 import { routeCable, type CableEnd, type CableRoute, type Circle, type Plane, type RouteConfig } from './cableRoute';
-import { FLOOR, furnitureRect, type Surfaces } from '../room/surfaces';
+import { FLOOR, type Surfaces } from '../room/surfaces';
 
 const DEG = Math.PI / 180;
 /** 끝점이 이만큼 움직였을 때만 경로를 다시 계산(손 흔들림 때문에 매 프레임 계산하지 않게). */
@@ -85,15 +85,20 @@ export class CableLayout {
     return broken;
   }
 
-  /** 면마다 장애물: 그 면에 놓인 장비 원 + (바닥이면) 찬장 등 가구 사각형. 테이블은 바닥 케이블이 밑으로 지나간다. */
+  /**
+   * 면마다 장애물: 그 면에 놓인 장비 원 + (바닥이면) 찬장·테이블 다리. 테이블 밑은 지나간다.
+   * 가구 사각형은 케이블 반지름만큼 넓혀서 케이블이 옆면에 묻히지 않게 한다.
+   */
   private planes(): Plane[] {
-    const cupboards = this.surfaces.furniture.filter((f) => f.type !== 'table').map(furnitureRect);
+    const lift = this.cfg.liftM;
+    const boxes = this.surfaces.floorCableBoxes.map((b) => ({ ...b, hxM: b.hxM + lift, hzM: b.hzM + lift }));
     return this.surfaces.list.map((s) => ({
       id: s.id,
       yM: s.yM,
       region: s.rect,
       circles: this.manager.instances.filter((i) => !i.held && i.surfaceId === s.id).map(bodyOf),
-      boxes: s.id === FLOOR ? cupboards : [],
+      boxes: s.id === FLOOR ? boxes : [],
+      openSides: s.openSides,
     }));
   }
 

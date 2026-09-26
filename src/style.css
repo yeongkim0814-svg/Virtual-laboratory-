@@ -115,21 +115,3 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
 }
 .crosshair[hidden] { display: none; }
 
-/* ── 찬장 목록 ── */
-.cupboard-menu {
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 240px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.75);
-  color: #fff;
-}
-.cupboard-menu[hidden] { display: none; }
-.cupboard-menu button { min-height: 44px; }

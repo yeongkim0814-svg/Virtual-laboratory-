@@ -130,5 +130,19 @@ describe('routeCable', () => {
       }
     }
   });
+  it('선반 위 장비의 케이블은 앞으로만 나온다(옆·뒤판을 뚫지 않음)', () => {
+    // 선반 안쪽: 중심 (0, 0), 반폭 1, 반깊이 0.25, 높이 0.91, 앞 = +z. 상대는 선반 옆쪽 (2, 0, −0.1)
+    const planes: Plane[] = [
+      { id: 'floor', yM: 0, region: null, circles: [], boxes: [] },
+      { id: 's', yM: 0.91, region: { xM: 0, zM: 0, hxM: 1, hzM: 0.25, yawRad: 0 }, circles: [{ xM: 0.8, zM: 0, rM: 0.1 }], boxes: [], openSides: [2] },
+    ];
+    const onShelf: CableEnd = { portM: [0.9, 1.01, 0], body: { xM: 0.8, zM: 0, rM: 0.1 }, fallbackDir: [1, 0], planeId: 's' };
+    const target: CableEnd = { portM: [2, 0, -0.1], body: null, fallbackDir: [1, 0], planeId: 'floor' };
+    const r = routeCable(onShelf, target, planes, cfg)!;
+    // 선반 높이에서 선반 밖으로 나가는 점은 모두 앞(z ≥ 0.25) 쪽
+    const leaving = r.pointsM.filter((p) => p[1] > 0.9 && (Math.abs(p[0]) > 1 || Math.abs(p[2]) > 0.25));
+    expect(leaving.length).toBeGreaterThan(0);
+    for (const p of leaving) expect(p[2]).toBeGreaterThanOrEqual(0.25);
+  });
 });
 

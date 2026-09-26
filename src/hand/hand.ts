@@ -27,14 +27,7 @@ type HandState =
   | { kind: 'empty' }
   | { kind: 'picking'; inst: EquipmentInstance; swingS: number; grab: Move | null }
   | { kind: 'holding'; inst: EquipmentInstance }
-  | {
-      kind: 'placing';
-      inst: EquipmentInstance;
-      swingS: number;
-      pose: PlacementPose;
-      release: Move | null;
-      onDone?: () => void;
-    };
+  | { kind: 'placing'; inst: EquipmentInstance; swingS: number; pose: PlacementPose; release: Move | null };
 
 /**
  * 1인칭 손(카메라에 붙은 뷰모델). 장비를 집고, 들고, 놓는다.
@@ -44,7 +37,6 @@ type HandState =
  * - 두 손 장비: grip 점들의 가운데가 twoHandAnchorM 에, 두 손은 각 grip 점으로.
  * - 집기·놓기: Minecraft 식 휘두르기, 스윙 중 grabAtPhase 에 장비를 잡거나 놓는다.
  *
- * 찬장 등에서 새 장비를 꺼내는 기능은 EquipmentManager 에 장비를 만든 뒤 pick() 을 부르면 된다.
  */
 export class Hand {
   private state: HandState = { kind: 'empty' };
@@ -94,9 +86,9 @@ export class Hand {
   }
 
   /** 들고 있는 장비를 pose(월드)에 놓는다(휘두르기 동작 포함). */
-  place(pose: PlacementPose, onDone?: () => void): void {
+  place(pose: PlacementPose): void {
     if (this.state.kind !== 'holding') return;
-    this.state = { kind: 'placing', inst: this.state.inst, swingS: 0, pose, release: null, onDone };
+    this.state = { kind: 'placing', inst: this.state.inst, swingS: 0, pose, release: null };
   }
 
   /** 세팅을 새로 불러올 때: 손에 있던 것을 버린다(장비 객체는 매니저가 새로 만든다). */
@@ -134,10 +126,7 @@ export class Hand {
       if (!s.release && this.swingPhase(s.swingS) >= cfg.swing.grabAtPhase) s.release = this.detach(s.inst);
       if (s.release) {
         const done = this.stepMove(s.release, s.inst.object, this.worldTarget(s.pose), dtS);
-        if (done && this.swingPhase(s.swingS) >= 1) {
-          this.finishPlace(s.inst, s.pose);
-          s.onDone?.();
-        }
+        if (done && this.swingPhase(s.swingS) >= 1) this.finishPlace(s.inst, s.pose);
       }
     }
 

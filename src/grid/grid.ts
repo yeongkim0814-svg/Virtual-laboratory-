@@ -68,3 +68,26 @@ export function checkCells(
   if (cells.some((c) => occupied.has(cellKey(c)))) return { ok: false, reason: 'overlap' };
   return { ok: true };
 }
+
+/**
+ * 면 안으로 끌어당기기: 중심 셀에서 밑넓이가 허용 셀 밖으로 나가면, maxShift 셀 이내에서
+ * 밑넓이가 모두 허용 셀인 가장 가까운 중심 셀을 찾는다(겹침은 따로 검사). 없으면 null.
+ * 선반처럼 깊이가 밑넓이와 비슷한 면에 조준을 정확히 맞추지 않아도 놓을 수 있게.
+ */
+export function nearestAllowedCenter(
+  center: Cell,
+  offsets: readonly Cell[],
+  allowed: (cell: Cell) => boolean,
+  maxShift: number,
+): Cell | null {
+  const fits = (c: Cell) => footprintCells(c, offsets).every(allowed);
+  if (fits(center)) return center;
+  const cand: Cell[] = [];
+  for (let i = -maxShift; i <= maxShift; i++) {
+    for (let j = -maxShift; j <= maxShift; j++) {
+      if ((i !== 0 || j !== 0) && Math.hypot(i, j) <= maxShift) cand.push([center[0] + i, center[1] + j]);
+    }
+  }
+  cand.sort((a, b) => Math.hypot(a[0] - center[0], a[1] - center[1]) - Math.hypot(b[0] - center[0], b[1] - center[1]));
+  return cand.find(fits) ?? null;
+}

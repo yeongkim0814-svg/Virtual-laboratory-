@@ -1,11 +1,11 @@
-// 장비를 놓을 수 있는 면: 바닥 + 테이블 윗면. 순수 코드 → 단위 테스트 대상(배치 규칙).
+// 장비를 놓을 수 있는 면: 바닥 + 테이블 윗면 + 찬장 선반. 순수 코드 → 단위 테스트 대상(배치 규칙).
 
 import type { FurnitureDef, RoomSize } from '../config/types';
 import { cellInsideRoom, type Cell } from '../grid/grid';
 import { cellInsideRect, cellNearRect, pointInRect, type Rect } from '../geom/rect';
+import { ALL_SIDES, FRONT_SIDE, furnitureRect, shelfLevels, shelfRect, tableLegRects } from './furnitureParts';
 
 export const FLOOR = 'floor';
-const DEG = Math.PI / 180;
 /** 이 높이 차 이내면 그 면 위로 본다. */
 const HEIGHT_EPS_M = 0.01;
 
@@ -14,16 +14,20 @@ export interface Surface {
   yM: number;
   /** null = 바닥(방 전체). */
   rect: Rect | null;
+  /** 위로 빈 높이(선반 사이). 장비가 이보다 크면 놓을 수 없다. 막힌 곳이 없으면 Infinity. */
+  clearHeightM: number;
+  /** 케이블이 넘어 나갈 수 있는 변(0 = +x, 1 = −x, 2 = +z 앞, 3 = −z). 선반은 앞만. */
+  openSides: number[];
 }
 
-export function furnitureRect(f: FurnitureDef): Rect {
-  return { xM: f.positionM[0], zM: f.positionM[2], hxM: f.sizeM[0] / 2, hzM: f.sizeM[2] / 2, yawRad: f.rotationYDeg * DEG };
-}
+export { furnitureRect };
 
 export class Surfaces {
   readonly list: Surface[];
   /** 바닥에서 가구가 차지한 자리(바닥에는 놓을 수 없음). */
   readonly furnitureRects: Rect[];
+  /** 바닥 케이블이 피해야 하는 것: 찬장 전체, 테이블 다리(테이블 밑은 지나감). */
+  readonly floorCableBoxes: Rect[];
 
   constructor(
     readonly room: RoomSize,
@@ -31,10 +35,17 @@ export class Surfaces {
     readonly cellSizeM: number,
   ) {
     this.furnitureRects = furniture.map(furnitureRect);
-    this.list = [
-      { id: FLOOR, yM: 0, rect: null },
-      ...furniture.filter((f) => f.type === 'table').map((f) => ({ id: f.id, yM: f.sizeM[1], rect: furnitureRect(f) })),
-    ];
+    this.floorCableBoxes = furniture.flatMap((f) => (f.type === 'table' ? tableLegRects(f) : [furnitureRect(f)]));
+    this.list = [{ id: FLOOR, yM: 0, rect: null, clearHeightM: Infinity, openSides: ALL_SIDES }];
+    for (const f of furniture) {
+      if (f.type === 'table') {
+        this.list.push({ id: f.id, yM: f.sizeM[1], rect: furnitureRect(f), clearHeightM: Infinity, openSides: ALL_SIDES });
+      } else {
+        const { yM, clearHeightM } = shelfLevels(f);
+        const rect = shelfRect(f);
+        yM.forEach((y, k) => this.list.push({ id: `${f.id}/${k + 1}`, yM: y, rect, clearHeightM, openSides: [FRONT_SIDE] }));
+      }
+    }
   }
 
   get(id: string): Surface | undefined {

@@ -70,23 +70,7 @@ describe('parseSetup: 케이블 (version 2)', () => {
   });
 });
 
-describe('parseSetup: 찬장 재고', () => {
-  it('정상 재고는 그대로, 없으면 필드 없음', () => {
-    expect(parseSetup({ ...wired([]), cupboards: { c: { src: 2 } } }, defs).cupboards).toEqual({ c: { src: 2 } });
-    expect(parseSetup(wired([]), defs).cupboards).toBeUndefined();
-  });
-  it('오류: 알 수 없는 종류 / 음수·소수 개수', () => {
-    expect(() => parseSetup({ ...wired([]), cupboards: { c: { nope: 1 } } }, defs)).toThrow('nope');
-    expect(() => parseSetup({ ...wired([]), cupboards: { c: { src: -1 } } }, defs)).toThrow('정수');
-    expect(() => parseSetup({ ...wired([]), cupboards: { c: { src: 1.5 } } }, defs)).toThrow('정수');
-  });
-});
-
 describe('serializeSetup', () => {
-  it('찬장 재고까지 저장 → 불러오기', () => {
-    const original = parseSetup({ ...wired([]), cupboards: { c: { src: 3 } } }, defs);
-    expect(parseSetup(JSON.parse(serializeSetup(original.equipment, original.cables, original.cupboards)), defs)).toEqual(original);
-  });
   it('케이블까지 저장 → 불러오기 하면 같은 세팅', () => {
     const original = parseSetup(wired([{ from: at('s', 'out'), to: at('d', 'in') }]), defs);
     const again = parseSetup(JSON.parse(serializeSetup(original.equipment, original.cables)), defs);

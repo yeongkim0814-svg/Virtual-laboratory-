@@ -8,17 +8,29 @@
     {
       "id": "table-1",
       "type": "table",
-      "positionM": [0, 0, 1],
+      "positionM": [-2.2, 0, -2.6],
       "rotationYDeg": 0,
-      "sizeM": [1.6, 0.75, 0.8]
+      "sizeM": [1.6, 0.75, 0.8],
+      "topThicknessM": 0.04,
+      "legSizeM": 0.06
     },
     {
-      "id": "cupboard-1",
+      "id": "cupboard-n",
       "type": "cupboard",
-      "positionM": [-1.8, 0, 1],
+      "positionM": [-3, 0, -4.75],
+      "rotationYDeg": 0,
+      "sizeM": [4, 1.8, 0.5],
+      "shelves": 4,
+      "panelThicknessM": 0.02
+    },
+    {
+      "id": "cupboard-w",
+      "type": "cupboard",
+      "positionM": [-4.75, 0, -2.5],
       "rotationYDeg": 90,
-      "sizeM": [1.2, 1.8, 0.5],
-      "stock": { "test-source": 2, "test-probe": 2 }
+      "sizeM": [4, 1.8, 0.5],
+      "shelves": 4,
+      "panelThicknessM": 0.02
     }
   ],
   "grid": {
@@ -30,7 +42,7 @@
     "clearanceM": 0.01
   },
   "player": {
-    "startPositionM": [0, 0, 3],
+    "startPositionM": [-2.2, 0, -0.6],
     "startYawDeg": 0,
     "eyeHeightM": 1.6,
     "radiusM": 0.3,

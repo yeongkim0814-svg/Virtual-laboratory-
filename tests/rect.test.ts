@@ -1,7 +1,7 @@
 // 회전된 직사각형 기하 테스트 (물리 규칙 아님). 기대값은 손계산.
 import { describe, expect, it } from 'vitest';
 import {
-  cellInsideRect, cellNearRect, nearestEdge, pointInRect, pushOutOfRect, segmentHitsRect, toLocal, toWorld, type Rect,
+  cellInsideRect, cellNearRect, closestOnEdges, nearestEdge, pointInRect, pushOutOfRect, segmentHitsRect, toLocal, toWorld, type Rect,
 } from '../src/geom/rect';
 
 const r: Rect = { xM: 1, zM: 2, hxM: 0.5, hzM: 0.25, yawRad: 0 };
@@ -41,6 +41,15 @@ describe('rect', () => {
     expect(e.pointM[1]).toBeCloseTo(2.25);
     expect(e.outward[0]).toBeCloseTo(0);
     expect(e.outward[1]).toBeCloseTo(1);
+  });
+  it('closestOnEdges: 허용된 변만. 밖의 점 (1.1, 3) → 앞(+z)만이면 (1.1, 2.25), +x 만이면 (1.5, 2.25)', () => {
+    const f = closestOnEdges(r, 1.1, 3, [2]);
+    expect(f.pointM[0]).toBeCloseTo(1.1);
+    expect(f.pointM[1]).toBeCloseTo(2.25);
+    const x = closestOnEdges(r, 1.1, 3, [0]);
+    expect(x.pointM[0]).toBeCloseTo(1.5);
+    expect(x.pointM[1]).toBeCloseTo(2.25);
+    expect(x.outward[0]).toBeCloseTo(1);
   });
   it('pushOutOfRect(반지름 0.3): 겹치면 가장 가까운 바깥으로, 안 겹치면 그대로', () => {
     const p = pushOutOfRect(r, 1.7, 2, 0.3); // 넓힌 반폭 0.8 → x 1.8 까지 겹침 → 1.8 로

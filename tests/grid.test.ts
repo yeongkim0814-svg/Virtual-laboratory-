@@ -1,7 +1,7 @@
 // 격자 배치 규칙 테스트 (물리 규칙 아님). 기대값은 손계산.
 import { describe, expect, it } from 'vitest';
 import {
-  cellInsideRoom, cellKey, cellToWorld, checkCells, circleOffsets, footprintCells, worldToCell,
+  cellInsideRoom, cellKey, cellToWorld, checkCells, circleOffsets, footprintCells, nearestAllowedCenter, worldToCell,
 } from '../src/grid/grid';
 
 const C = 0.05; // 셀 5 cm
@@ -74,3 +74,19 @@ describe('checkCells', () => {
     expect(checkCells(footprintCells([97, 0], offsets), new Set(), inRoom).ok).toBe(true);
   });
 });
+
+describe('nearestAllowedCenter (면 안으로 끌어당기기)', () => {
+  const offsets = circleOffsets(0.1, C); // ±2셀
+  // 폭 5셀짜리 띠(j = −2..2)만 허용 → 중심은 j = 0 한 줄만 가능
+  const strip = (c: readonly [number, number]) => Math.abs(c[1]) <= 2;
+  it('이미 들어가면 그대로', () => {
+    expect(nearestAllowedCenter([3, 0], offsets, strip, 3)).toEqual([3, 0]);
+  });
+  it('j = 2 로 조준해도 가장 가까운 j = 0 으로 (2셀 이동)', () => {
+    expect(nearestAllowedCenter([3, 2], offsets, strip, 3)).toEqual([3, 0]);
+  });
+  it('허용 범위(maxShift) 안에 없으면 null', () => {
+    expect(nearestAllowedCenter([3, 5], offsets, strip, 3)).toBeNull();
+  });
+});
+

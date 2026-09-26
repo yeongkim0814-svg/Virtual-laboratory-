@@ -45,7 +45,7 @@
     },
     "cupboard": {
       "color": "#8d6e63",
-      "sizeM": [1.2, 1.8, 0.5]
+      "sizeM": [4, 1.8, 0.5]
     }
   },
   "environment": {
