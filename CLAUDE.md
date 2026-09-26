@@ -58,31 +58,34 @@
 - `public/assets.json`
   - `assets`: 에셋 이름 → `.glb 경로` 또는 `null`(placeholder)
   - `placeholders`: null 일 때의 외형(색, 두께) / `environment`: 배경색·조명 / `placementPreview`: 배치 미리보기 색·투명도
+  - `wiring`: 케이블 색·굵기·처짐, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker`
 - `public/lab.json` — 방 크기, 격자(cellSizeM), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
 - `src/assets/` — AssetRegistry(이름 → Object3D), placeholder 상자(원점=바닥 중앙)
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
 - `src/input/` — controlMath(순수 함수), touchControls(Touch Events, 멀티터치)
 - `src/player/` — 1인칭 카메라
-- `src/signal/` — channels(채널 목록·Signal 타입), signalBus(포트 위치·채널 기반 라우팅, 채널별 Router 교체 가능)
+- `src/signal/` — channels(채널 목록·Signal 타입), signalBus(라우터 기반 전달, 채널별 Router 교체 가능),
+  cables(케이블 규칙·케이블 라우터, 순수 함수), cableView(케이블 그리기, 처짐은 보기용)
 - `src/equipment/` — registry(devices/ 자동 수집), equipmentManager(프레임 갱신, 1프레임 지연 전달), setup(세팅 JSON 저장/불러오기), ports(로컬→월드)
-- `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀, 방 안·겹침 검사(순수 함수)
-- `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기·떨어뜨리기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)
+- `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)
+- `src/equipment/footprint.ts` — 모델이 내접하는 밑면 원 반지름(모델 꼭짓점 중 수직축에서 가장 먼 수평 거리)
+- `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)
 - `src/interaction/` — interaction(탭으로 집기, 화면 중앙 시선으로 배치 후보, 탭으로 놓기), placementPreview(반투명 장비 + 밑넓이 셀)
-- `src/ui/holdControls.ts` — 들고 있을 때 놓기(떨어뜨리기) 버튼, 조준점, 안내 메시지
-- 장비 배치 규칙: 위치는 셀 중심에만, 밑넓이(원) 셀이 하나라도 겹치거나 방 밖이면 배치 불가.
+- `src/ui/holdControls.ts` — 들고 있을 때 조준점, 안내 메시지
+- 장비 배치 규칙: 위치는 셀 중심에만, 밑넓이(모델이 내접하는 원 → 격자) 셀이 하나라도 겹치거나 방 밖이면 배치 불가.
+  셀이 안 겹치면 모델끼리도 절대 안 겹친다(원 ⊂ 셀).
   들고 있는 동안 회전 불가 → 놓은 뒤 패널 각도 슬라이더(-180~180°, 1°)
-- 떨어뜨리기 낙하: 현재 비물리적 보간. 자유낙하 규칙은 사용자 승인 후 교체(hand.ts TODO)
 - `src/ui/equipmentPanel.ts` — 장비 목록, params 슬라이더 자동 생성, readouts 표시, 저장/불러오기
 - `public/setups/default.json` — 시작 시 불러오는 세팅
 
 ### 새 장비 추가 방법 (기존 코드 수정 없음)
-1. `src/equipment/devices/<type>/definition.json` — type(=폴더 이름), label, asset, hold(hands: 1|2, grips: 손바닥이 닿는 점들), footprint(radiusM: 밑넓이 원 반지름), channels, ports, params, readouts
+1. `src/equipment/devices/<type>/definition.json` — type(=폴더 이름), label, asset, hold(hands: 1|2, grips: 손바닥이 닿는 점들)(밑넓이는 모델에서 자동 계산), channels, ports, params, readouts
 2. `src/equipment/devices/<type>/behavior.ts` — `export default { type, create: () => ({ update(ctx) {…} }) }`
    - ctx.inputs[포트id] 로 받고, ctx.emit(포트id, 값) 으로 내보내고, ctx.setReadout 으로 표시
 3. `public/assets.json` — assets 에 `"<asset>": null`, placeholders 에 `{ color, sizeM }`
 4. 세팅 JSON(`public/setups/*.json`)에 배치
-- 포트 연결: 같은 채널의 out·in 포트가 lab.json `signal.contactToleranceM` 이내면 연결(접촉 라우터)
-- 포트 자동 스냅은 격자 배치와 충돌해 제거됨. 포트는 격자·각도가 맞을 때만 맞닿는다
+- 포트 연결: 케이블. 빈손으로 포트 탭 → 다른 포트 탭 = 연결(같은 채널, out↔in, 다른 장비, 포트당 1개).
+  꽂힌 포트를 탭하면 뽑기. 세팅 JSON(version 2)의 cables 에 저장. 들고 있는 동안 신호만 끊김(케이블은 꽂힌 채)
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 명령: `npm run dev` / `npm test` / `npm run build`

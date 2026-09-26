@@ -1,9 +1,11 @@
-// 실험 세팅(장비 종류·위치·회전·수치) JSON 직렬화 / 역직렬화. 순수 함수.
+// 실험 세팅(장비 종류·위치·회전·수치, 케이블) JSON 직렬화 / 역직렬화. 순수 함수.
+// version 1: 장비만 / version 2: 장비 + 케이블. 1 도 읽을 수 있다(케이블 없음).
 
 import type { Vec3 } from '../config/types';
+import { checkCable, portLookup, type Cable } from '../signal/cables';
 import type { EquipmentDefinition } from './types';
 
-export const SETUP_VERSION = 1;
+export const SETUP_VERSION = 2;
 
 export interface SetupItem {
   id: string;
@@ -16,6 +18,7 @@ export interface SetupItem {
 export interface SetupFile {
   version: number;
   equipment: SetupItem[];
+  cables: Cable[];
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
@@ -26,14 +29,15 @@ const isVec3 = (v: unknown): v is Vec3 => Array.isArray(v) && v.length === 3 && 
  * - 알 수 없는 장비 종류, 중복 id, 잘못된 좌표 → 오류
  * - 빠진 param → 정의의 default, 범위 밖 param → [min, max] 로 자름
  * - 정의에 없는 param 키 → 오류
+ * - 케이블: 없는 장비·포트, 채널·방향 불일치, 포트 하나에 케이블 둘 → 오류
  */
 export function parseSetup(
   raw: unknown,
   definitions: ReadonlyMap<string, EquipmentDefinition>,
 ): SetupFile {
   if (typeof raw !== 'object' || raw === null) throw new Error('세팅: 객체가 아님');
-  const r = raw as { version?: unknown; equipment?: unknown };
-  if (r.version !== SETUP_VERSION) throw new Error(`세팅: 지원하지 않는 version ${String(r.version)}`);
+  const r = raw as { version?: unknown; equipment?: unknown; cables?: unknown };
+  if (r.version !== 1 && r.version !== SETUP_VERSION) throw new Error(`세팅: 지원하지 않는 version ${String(r.version)}`);
   if (!Array.isArray(r.equipment)) throw new Error('세팅: equipment 배열이 없음');
 
   const ids = new Set<string>();
@@ -61,11 +65,27 @@ export function parseSetup(
     return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params };
   });
 
-  return { version: SETUP_VERSION, equipment };
+  const typeOf = new Map(equipment.map((e) => [e.id, e.type]));
+  const portOf = portLookup((id) => typeOf.get(id), definitions);
+  const rawCables = r.version === 1 ? [] : r.cables ?? [];
+  if (!Array.isArray(rawCables)) throw new Error('세팅: cables 는 배열');
+  const cables: Cable[] = [];
+  rawCables.forEach((c: unknown, i) => {
+    const cc = c as Partial<Cable>;
+    const ok = (a: unknown): a is { deviceId: string; portId: string } =>
+      typeof a === 'object' && a !== null && typeof (a as { deviceId?: unknown }).deviceId === 'string' &&
+      typeof (a as { portId?: unknown }).portId === 'string';
+    if (!ok(cc.from) || !ok(cc.to)) throw new Error(`세팅 cables[${i}]: from/to 는 { deviceId, portId }`);
+    const check = checkCable(cc.from, cc.to, portOf, cables);
+    if (!check.ok) throw new Error(`세팅 cables[${i}]: 연결할 수 없음 (${check.reason})`);
+    cables.push(check.cable);
+  });
+
+  return { version: SETUP_VERSION, equipment, cables };
 }
 
 /** 세팅 → JSON 문자열 (사람이 읽기 쉽게 들여쓰기). */
-export function serializeSetup(equipment: readonly SetupItem[]): string {
+export function serializeSetup(equipment: readonly SetupItem[], cables: readonly Cable[] = []): string {
   const file: SetupFile = {
     version: SETUP_VERSION,
     equipment: equipment.map((e) => ({
@@ -75,6 +95,7 @@ export function serializeSetup(equipment: readonly SetupItem[]): string {
       rotationYDeg: e.rotationYDeg,
       params: { ...e.params },
     })),
+    cables: cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } })),
   };
   return JSON.stringify(file, null, 2);
 }

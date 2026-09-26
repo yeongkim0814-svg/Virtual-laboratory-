@@ -2,7 +2,8 @@
 //
 // 규약: 셀 (kx, kz) 의 중심 = (kx·c, kz·c), c = cellSizeM. 방 중심(0,0)이 셀 (0,0) 의 중심.
 //       셀이 방 안에 "완전히" 들어가야 쓸 수 있는 셀이다: |k|·c + c/2 ≤ 방 반폭.
-// 장비 밑넓이 = 격자로 표현한 원: 장비 중심 셀에서 셀 중심까지 거리 ≤ radiusM 인 셀들.
+// 장비 밑넓이 = 격자로 표현한 원: 반지름 radiusM 원이 조금이라도 들어가는 셀 전부(보수적 래스터화).
+//   → 원 ⊂ 셀들의 합집합. 두 장비의 셀이 겹치지 않으면 두 원(= 그 안에 내접한 모델)도 겹치지 않는다.
 //   (원이므로 장비를 어떤 각도로 돌려도 차지하는 셀이 같다)
 
 import type { RoomSize } from '../config/types';
@@ -24,13 +25,18 @@ export function cellToWorld(cell: Cell, cellSizeM: number): [number, number] {
   return [r(cell[0] * cellSizeM), r(cell[1] * cellSizeM)];
 }
 
-/** 반지름 radiusM 원의 셀 오프셋(중심 셀 기준). 중심 셀은 항상 포함. */
+/**
+ * 반지름 radiusM 원이 들어가는 셀 오프셋(중심 셀 기준). 중심 셀은 항상 포함.
+ * 셀 (i, j) 에서 원 중심에 가장 가까운 점까지 거리 < radiusM 이면 포함.
+ * (거리가 정확히 radiusM 이면 원이 셀 경계에 접하기만 하므로 제외)
+ */
 export function circleOffsets(radiusM: number, cellSizeM: number): Cell[] {
-  const n = Math.floor(radiusM / cellSizeM + EPS);
+  const n = Math.ceil(radiusM / cellSizeM + 0.5);
+  const near = (k: number): number => Math.max(Math.abs(k) * cellSizeM - cellSizeM / 2, 0);
   const out: Cell[] = [];
   for (let i = -n; i <= n; i++) {
     for (let j = -n; j <= n; j++) {
-      if (Math.hypot(i, j) * cellSizeM <= radiusM + EPS) out.push([i + 0, j + 0]); // +0: -0 → 0
+      if ((i === 0 && j === 0) || Math.hypot(near(i), near(j)) < radiusM - EPS) out.push([i + 0, j + 0]); // +0: -0 → 0
     }
   }
   return out;

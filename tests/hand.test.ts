@@ -1,4 +1,4 @@
-// 손으로 집기·들기·놓기·떨어뜨리기 흐름 테스트 (상태·자세, 물리 규칙 아님).
+// 손으로 집기·들기·놓기 흐름 테스트 (상태·자세, 물리 규칙 아님).
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { createPlaceholderBox } from '../src/assets/placeholder';
@@ -7,7 +7,8 @@ import { loadEquipmentRegistry } from '../src/equipment/registry';
 import { parseSetup } from '../src/equipment/setup';
 import { Hand } from '../src/hand/hand';
 import type { HandConfig } from '../src/config/types';
-import { contactRouter, SignalBus } from '../src/signal/signalBus';
+import { SignalBus } from '../src/signal/signalBus';
+import { cableRouter } from '../src/signal/cables';
 
 const registry = loadEquipmentRegistry();
 const cfg: HandConfig = {
@@ -16,21 +17,28 @@ const cfg: HandConfig = {
   swayMPerPx: 0, swayMaxM: 0, swayReturnPerS: 10, bobAmplitudeM: 0, bobCyclesPerM: 1,
   swing: { durationS: 0.3, grabAtPhase: 0.35, offsetM: [-0.1, 0.05, -0.08], rotDeg: [-40, -20, -20] },
 };
-const fakeAssets = { create: async () => createPlaceholderBox([0.3, 0.2, 0.2], '#000000') };
+const fakeAssets = {
+  create: async (name: string) =>
+    createPlaceholderBox(name === 'port-marker' ? [0.03, 0.03, 0.03] : [0.3, 0.2, 0.2], '#000000'),
+};
 
 async function setup() {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
   scene.add(camera);
-  const m = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(contactRouter(0.02)), { cellSizeM: 0.05, room: { widthM: 10, depthM: 10, heightM: 3 } });
+  const m: EquipmentManager = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(cableRouter(() => m.cables)), {
+    grid: { cellSizeM: 0.05, room: { widthM: 10, depthM: 10, heightM: 3 } },
+    portHitRadiusM: 0,
+  });
   await m.load(parseSetup({
-    version: 1,
+    version: 2,
     equipment: [
       { id: 's', type: 'test-source', positionM: [-0.15, 0, 1], params: { voltageV: 7 } },
-      { id: 'p', type: 'test-probe', positionM: [0.15, 0, 1] },
+      { id: 'p', type: 'test-probe', positionM: [0.3, 0, 1] },
       { id: 'r', type: 'test-source', positionM: [2, 0, 2], rotationYDeg: 30 },
       { id: 'q', type: 'test-probe', positionM: [-2, 0, -2], rotationYDeg: 180 },
     ],
+    cables: [{ from: { deviceId: 's', portId: 'out' }, to: { deviceId: 'p', portId: 'in' } }],
   }, registry.definitions));
   const right = new THREE.Object3D();
   const left = new THREE.Object3D();
@@ -111,7 +119,7 @@ describe('Hand: 집기', () => {
   });
 });
 
-describe('Hand: 놓기·떨어뜨리기', () => {
+describe('Hand: 놓기', () => {
   it('놓으면: 끝난 뒤 월드 자세·세팅 갱신, 신호 다시 연결', async () => {
     const { m, hand, run, probe, source } = await setup();
     hand.pick(source, 0);
@@ -127,21 +135,8 @@ describe('Hand: 놓기·떨어뜨리기', () => {
     expect(probe.readouts.voltageV).toBe(7);
   });
 
-  it('떨어뜨리면: 스윙 없이 바로 손에서 떨어지고, 끝나면 그 자리에 놓인다', async () => {
-    const { m, hand, run, source } = await setup();
-    hand.pick(source, 0);
-    run(1);
-    hand.drop({ positionM: [-1, 0, 1], yawRad: Math.PI / 2 });
-    expect(source.object.parent).toBe(m.group); // 즉시 손에서 떨어짐
-    run(1);
-    expect(source.held).toBe(false);
-    expect(m.toSetupItems()[0].positionM).toEqual([-1, 0, 1]);
-    expect(m.toSetupItems()[0].rotationYDeg).toBeCloseTo(90);
-  });
-
-  it('들고 있지 않으면 drop/place 는 아무 일도 안 한다', async () => {
+  it('들고 있지 않으면 place 는 아무 일도 안 한다', async () => {
     const { hand } = await setup();
-    hand.drop({ positionM: [0, 0, 0], yawRad: 0 });
     hand.place({ positionM: [0, 0, 0], yawRad: 0 });
     expect(hand.busy).toBe(false);
   });

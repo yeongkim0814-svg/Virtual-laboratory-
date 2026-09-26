@@ -17,18 +17,31 @@ describe('셀 ↔ 월드 (셀 중심 = k·c)', () => {
   });
 });
 
-describe('circleOffsets (셀 중심까지 거리 ≤ 반지름)', () => {
-  it('r = 0.14 m, c = 0.05 m: i²+j² ≤ 7.84 → 5×5 에서 네 모서리(2,2) 제외 = 21셀', () => {
-    const o = circleOffsets(0.14, C);
-    expect(o).toHaveLength(21);
-    expect(o.some(([i, j]) => i === 2 && j === 2)).toBe(false);
-    expect(o.some(([i, j]) => i === 2 && j === 1)).toBe(true); // √5·0.05 ≈ 0.112
+describe('circleOffsets (원이 조금이라도 들어가는 셀, 보수적)', () => {
+  // 셀 (i, j) 에서 원 중심에 가장 가까운 점까지 거리(셀 단위) a = max(|k| − 0.5, 0) → a_i² + a_j² < (r/c)²
+  it('r = 0.10 m (r/c = 2, 기준 4): |i|≤1 → |j|≤2 (5+5+5) + |i|=2(a²=2.25) → |j|≤1 (3+3) = 21셀', () => {
+    expect(circleOffsets(0.1, C)).toHaveLength(21);
   });
-  it('경계 포함: r = 0.10 m → (2,0) 거리 0.10 포함, (2,1) 0.112 제외 → i²+j² ≤ 4 = 13셀', () => {
-    expect(circleOffsets(0.1, C)).toHaveLength(13);
+  it('0.3×0.2 상자에 외접하는 r = 0.18028 m (기준 13): 9 + 18 + 14 + 14 + 6 = 61셀, 가로로 ±4셀', () => {
+    const o = circleOffsets(Math.hypot(0.15, 0.1), C);
+    expect(o).toHaveLength(61);
+    expect(Math.max(...o.map(([i]) => i))).toBe(4);
   });
   it('셀보다 작은 원(r = 0.02 m) → 중심 셀 1개', () => {
     expect(circleOffsets(0.02, C)).toEqual([[0, 0]]);
+  });
+  it('원이 옆 셀 경계에 접하기만 하면(r = 0.025 m) 그 셀은 제외 → 1개', () => {
+    expect(circleOffsets(0.025, C)).toEqual([[0, 0]]);
+  });
+  it('원 전체가 셀들 안에 들어간다: 원 위의 점 72개가 모두 차지 셀 안', () => {
+    const r = 0.18;
+    const keys = new Set(circleOffsets(r, C).map(cellKey));
+    for (let k = 0; k < 72; k++) {
+      const t = (k / 72) * 2 * Math.PI;
+      const x = r * 0.999 * Math.cos(t);
+      const z = r * 0.999 * Math.sin(t);
+      expect(keys.has(cellKey(worldToCell(x, z, C)))).toBe(true);
+    }
   });
   it('원은 x·z 대칭 → 90° 회전해도 같은 셀 집합', () => {
     const o = circleOffsets(0.14, C);
@@ -46,20 +59,16 @@ describe('cellInsideRoom (셀이 방 안에 완전히)', () => {
 });
 
 describe('checkCells', () => {
-  const offsets = circleOffsets(0.14, C); // 반경 2셀
-  it('중심 간 6셀(0.30 m): 차지 셀 −5..−1 과 1..5 → 안 겹침', () => {
-    const occupied = new Set(footprintCells([-3, 0], offsets).map(cellKey));
-    expect(checkCells(footprintCells([3, 0], offsets), occupied, C, room)).toEqual({ ok: true });
+  const offsets = circleOffsets(0.1, C); // 가로 ±2셀
+  it('중심 간 5셀(0.25 m): −2..2 와 3..7 → 안 겹침', () => {
+    const occupied = new Set(footprintCells([0, 0], offsets).map(cellKey));
+    expect(checkCells(footprintCells([5, 0], offsets), occupied, C, room)).toEqual({ ok: true });
   });
-  it('중심 간 4셀(0.20 m): 셀 공유 → overlap', () => {
-    const occupied = new Set(footprintCells([-2, 0], offsets).map(cellKey));
-    expect(checkCells(footprintCells([2, 0], offsets), occupied, C, room)).toEqual({ ok: false, reason: 'overlap' });
+  it('중심 간 4셀(0.20 m): 2 를 함께 차지 → overlap', () => {
+    const occupied = new Set(footprintCells([0, 0], offsets).map(cellKey));
+    expect(checkCells(footprintCells([4, 0], offsets), occupied, C, room)).toEqual({ ok: false, reason: 'overlap' });
   });
-  it('중심 간 5셀(0.25 m): −4..0 과 1..5 → 맞닿지만 안 겹침', () => {
-    const occupied = new Set(footprintCells([-2, 0], offsets).map(cellKey));
-    expect(checkCells(footprintCells([3, 0], offsets), occupied, C, room).ok).toBe(true);
-  });
-  it('벽 옆: 중심 k = 98 이면 98+2 = 100 셀이 방 밖 → outside', () => {
+  it('벽 옆: 중심 k = 98 이면 100 셀이 방 밖 → outside, 97 은 안', () => {
     expect(checkCells(footprintCells([98, 0], offsets), new Set(), C, room)).toEqual({ ok: false, reason: 'outside' });
     expect(checkCells(footprintCells([97, 0], offsets), new Set(), C, room).ok).toBe(true);
   });

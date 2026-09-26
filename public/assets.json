@@ -5,7 +5,8 @@
     "test-source": null,
     "test-probe": null,
     "hand-right": null,
-    "hand-left": null
+    "hand-left": null,
+    "port-marker": null
   },
   "placeholders": {
     "floor": {
@@ -31,6 +32,10 @@
     "hand-left": {
       "color": "#e0b899",
       "sizeM": [0.09, 0.05, 0.18]
+    },
+    "port-marker": {
+      "color": "#f2f2f2",
+      "sizeM": [0.03, 0.03, 0.03]
     }
   },
   "environment": {
@@ -48,5 +53,13 @@
     "ghostOpacity": 0.4,
     "cellInsetRatio": 0.85,
     "cellLiftM": 0.002
+  },
+  "wiring": {
+    "cableColor": "#222222",
+    "cableRadiusM": 0.006,
+    "cableSagRatio": 0.15,
+    "cableSegments": 16,
+    "portHitRadiusM": 0.07,
+    "selectedPortScale": 1.8
   }
 }

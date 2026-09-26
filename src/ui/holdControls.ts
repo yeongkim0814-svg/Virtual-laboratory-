@@ -1,30 +1,18 @@
 import type { Hand } from '../hand/hand';
 
-/** 장비를 들고 있을 때만 보이는 놓기 버튼 + 짧은 안내 메시지. (들고 있는 동안 회전은 안 됨) */
+/** 들고 있을 때 조준점 + 짧은 안내 메시지. (들고 있는 동안 회전은 안 됨, 놓기는 바닥을 보고 탭) */
 export class HoldControls {
-  private readonly bar: HTMLDivElement;
   private readonly toast: HTMLDivElement;
   private readonly crosshair: HTMLDivElement;
   private toastTimer = 0;
 
-  constructor(
-    private readonly hand: Hand,
-    onDrop: () => void,
-  ) {
-    this.bar = document.createElement('div');
-    this.bar.className = 'hold-controls';
-    const drop = document.createElement('button');
-    drop.type = 'button';
-    drop.textContent = '놓기';
-    drop.addEventListener('click', onDrop);
-    this.bar.append(drop);
-
+  constructor(private readonly hand: Hand) {
     this.toast = document.createElement('div');
     this.toast.className = 'toast';
     this.toast.hidden = true;
     this.crosshair = document.createElement('div');
     this.crosshair.className = 'crosshair';
-    document.body.append(this.bar, this.toast, this.crosshair);
+    document.body.append(this.toast, this.crosshair);
   }
 
   notify(msg: string): void {
@@ -35,8 +23,6 @@ export class HoldControls {
   }
 
   tick(): void {
-    const holding = this.hand.heldInstance !== null;
-    this.bar.hidden = !holding;
-    this.crosshair.hidden = !holding;
+    this.crosshair.hidden = this.hand.heldInstance === null;
   }
 }

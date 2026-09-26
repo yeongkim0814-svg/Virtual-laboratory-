@@ -27,6 +27,20 @@ export interface AssetsFile {
   placeholders: Record<string, PlaceholderStyle>;
   environment: EnvironmentSpec;
   placementPreview: PlacementPreviewStyle;
+  wiring: WiringStyle;
+}
+
+/** 케이블·포트 외형. 케이블 처짐은 보기용(물리 계산 아님). */
+export interface WiringStyle {
+  cableColor: string;
+  cableRadiusM: number;
+  /** 케이블 가운데가 처지는 정도 = 두 끝 거리 × 이 값. */
+  cableSagRatio: number;
+  cableSegments: number;
+  /** 포트 탭 판정 반경(보이지 않음). 작은 포트를 손가락으로 누르기 쉽게. */
+  portHitRadiusM: number;
+  /** 케이블을 이을 포트를 골랐을 때 포트 표시 확대 배율. */
+  selectedPortScale: number;
 }
 
 /** 배치 미리보기(반투명 장비 + 밑넓이 셀) 외형. */
@@ -51,10 +65,6 @@ export interface LabFile {
   room: RoomSize;
   /** 장비 배치 격자. 셀 중심 = (k·cellSizeM), 방 중심이 셀 (0,0) 중심. */
   grid: { cellSizeM: number };
-  signal: {
-    /** 출력·입력 포트가 이 거리 이하면 연결된 것으로 본다. */
-    contactToleranceM: number;
-  };
   player: {
     startPositionM: Vec3;
     startYawDeg: number;

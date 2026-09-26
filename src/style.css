@@ -86,17 +86,7 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
 .panel-detail .row { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
 .panel-detail input[type='range'] { width: 100%; min-height: 44px; }
 
-/* ── 손에 든 장비 조작 ── */
-.hold-controls {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2;
-  display: flex;
-  gap: 12px;
-}
-.hold-controls[hidden] { display: none; }
-.hold-controls button { min-width: 56px; height: 56px; font-size: 22px; }
+/* ── 안내 메시지 ── */
 .toast {
   position: fixed;
   left: 50%;

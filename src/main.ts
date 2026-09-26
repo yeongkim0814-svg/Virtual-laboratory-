@@ -9,7 +9,9 @@ import { buildRoom } from './room/buildRoom';
 import { EquipmentManager } from './equipment/equipmentManager';
 import { loadEquipmentRegistry } from './equipment/registry';
 import { parseSetup, serializeSetup } from './equipment/setup';
-import { contactRouter, SignalBus } from './signal/signalBus';
+import { SignalBus } from './signal/signalBus';
+import { cableRouter } from './signal/cables';
+import { CableView } from './signal/cableView';
 import { EquipmentPanel } from './ui/equipmentPanel';
 import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
@@ -44,11 +46,13 @@ async function main(): Promise<void> {
   const room = await buildRoom(assets, lab.room);
   scene.add(room);
 
-  const bus = new SignalBus(contactRouter(lab.signal.contactToleranceM));
-  const equipment = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
-    cellSizeM: lab.grid.cellSizeM,
-    room: lab.room,
+  // 신호는 케이블로만 전달(장비끼리 직접 참조 없음). 케이블 목록은 매니저가 가진다.
+  const bus = new SignalBus(cableRouter(() => equipment.cables));
+  const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
+    grid: { cellSizeM: lab.grid.cellSizeM, room: lab.room },
+    portHitRadiusM: assetsFile.wiring.portHitRadiusM,
   });
+  const cableView = new CableView(scene, equipment, assetsFile.wiring);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
@@ -56,18 +60,20 @@ async function main(): Promise<void> {
   const player = new Player(camera, lab);
   const controls = new TouchControls(renderer.domElement, lab.controls.joystickRadiusPx, lab.controls);
   const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
-  const holdControls = new HoldControls(hand, () => interaction.drop());
+  const holdControls = new HoldControls(hand);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
-  const interaction = new Interaction(camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m));
+  const interaction = new Interaction(
+    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
+  );
 
   const panel = new EquipmentPanel(equipment, {
-    onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems())),
+    onSave: () => downloadText('setup.json', serializeSetup(equipment.toSetupItems(), equipment.cables)),
     onLoadFile: (file) => {
       file
         .text()
-        .then((text) => {
+        .then(async (text) => {
           const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions);
-          equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
+          await equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
           hand.reset();
           return equipment.load(setup);
         })
@@ -98,6 +104,7 @@ async function main(): Promise<void> {
     for (const tap of controls.consumeTaps()) interaction.handleTap(tap);
     hand.update(dtS, look, player.walkedM);
     interaction.update();
+    cableView.update();
     equipment.update(dtS);
     panel.tick();
     holdControls.tick();

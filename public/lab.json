@@ -7,9 +7,6 @@
   "grid": {
     "cellSizeM": 0.05
   },
-  "signal": {
-    "contactToleranceM": 0.02
-  },
   "player": {
     "startPositionM": [0, 0, 3],
     "startYawDeg": 0,
