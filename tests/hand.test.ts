@@ -105,6 +105,14 @@ describe('Hand: 집기', () => {
     expect(left.position.x).toBeCloseTo(-0.12);
     expect(right.position.x).toBeCloseTo(0.12);
   });
+  it('90° 돌아가 있던 두 손 장비를 집어도 두 손이 겹치지 않는다(양옆을 잡도록 손 안에서 돈다)', async () => {
+    const { m, hand, run, right, left } = await setup();
+    m.setRotation('q', 90);
+    hand.pick(m.get('q')!, 0);
+    run(1);
+    expect(right.position.x - left.position.x).toBeCloseTo(0.24);
+    expect(right.position.z).toBeCloseTo(left.position.z);
+  });
   it('들고 있는 동안에는 회전할 수 없다(손 기준 각도는 집을 때 값 그대로)', async () => {
     const { hand, run, rotated } = await setup();
     hand.pick(rotated, 0);

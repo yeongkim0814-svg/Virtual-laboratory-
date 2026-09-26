@@ -49,6 +49,20 @@ export function assignHands(points: readonly Vec3[]): { right: Vec3; left: Vec3 
   return a[0] <= b[0] ? { left: a, right: b } : { left: b, right: a };
 }
 
+/**
+ * 두 손 장비를 들 때 손 기준 회전: 두 grip 점을 잇는 선이 몸의 좌우(x축)와 나란하도록 한다.
+ * (상자를 두 손으로 들 때 양옆을 잡는 것처럼. 앞뒤로 늘어서면 두 손이 겹친다)
+ * 조건 R_y(yaw)·d 의 z 성분 = −dx·sin + dz·cos = 0 → yaw = atan2(dz, dx) 또는 그 + π.
+ * 둘 중 집을 때 보이던 방향(naturalYawRad)에 가까운 쪽.
+ */
+export function twoHandYawRad(grips: readonly Vec3[], naturalYawRad: number): number {
+  const dx = grips[1][0] - grips[0][0];
+  const dz = grips[1][2] - grips[0][2];
+  const a = Math.atan2(dz, dx);
+  const b = wrapAngleRad(a + Math.PI);
+  return Math.abs(wrapAngleRad(a - naturalYawRad)) <= Math.abs(wrapAngleRad(b - naturalYawRad)) ? wrapAngleRad(a) : b;
+}
+
 export interface SwingConfig {
   durationS: number;
   /** 스윙 중 이 위상에서 장비를 잡는다/놓는다. */

@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   assignHands, bobOffsetM, gripCenter, heldLocalPosition, placementYawRad, rotateY, smoothstep, swayStep, swingPose,
-  withinReach, wrapAngleRad,
+  twoHandYawRad, withinReach, wrapAngleRad,
 } from '../src/hand/handMath';
 import { isTap } from '../src/input/controlMath';
 
@@ -70,6 +70,25 @@ describe('assignHands', () => {
   it('두 점 → x 가 작은 쪽이 왼손 (순서가 바뀌어도 같음)', () => {
     expect(assignHands([[0.1, 0, 0], [-0.1, 0, 0]])).toEqual({ left: [-0.1, 0, 0], right: [0.1, 0, 0] });
     expect(assignHands([[-0.1, 0, 0], [0.1, 0, 0]])).toEqual({ left: [-0.1, 0, 0], right: [0.1, 0, 0] });
+  });
+});
+
+describe('twoHandYawRad (두 grip 을 잇는 선이 몸 좌우와 나란하게)', () => {
+  const g: [number, number, number][] = [[-0.12, 0.2, 0], [0.12, 0.2, 0]];
+  it('grip 이 로컬 x 축: 0° 또는 180° 중 가까운 쪽 (30° → 0°, 150° → 180°)', () => {
+    expect(twoHandYawRad(g, (30 * Math.PI) / 180)).toBeCloseTo(0);
+    expect(Math.abs(twoHandYawRad(g, (150 * Math.PI) / 180))).toBeCloseTo(Math.PI);
+  });
+  it('grip 이 로컬 z 축 (0,0,−0.1)→(0,0,0.1): atan2(0.2, 0) = 90° 또는 −90°', () => {
+    const gz: [number, number, number][] = [[0, 0, -0.1], [0, 0, 0.1]];
+    expect(twoHandYawRad(gz, 1)).toBeCloseTo(Math.PI / 2);
+    expect(twoHandYawRad(gz, -1)).toBeCloseTo(-Math.PI / 2);
+  });
+  it('결과 회전 후 두 grip 의 z 가 같다(앞뒤로 겹치지 않음)', () => {
+    const gz: [number, number, number][] = [[0.05, 0, -0.1], [-0.03, 0, 0.12]];
+    const yaw = twoHandYawRad(gz, 0.7);
+    const [a, b] = gz.map((p) => rotateY(p, yaw));
+    expect(a[2]).toBeCloseTo(b[2]);
   });
 });
 

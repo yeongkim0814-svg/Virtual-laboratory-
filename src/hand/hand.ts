@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { HandConfig, Vec3 } from '../config/types';
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
 import {
-  assignHands, bobOffsetM, heldLocalPosition, smoothstep, swayStep, swingPose, wrapAngleRad, type SwayState,
+  assignHands, bobOffsetM, twoHandYawRad, heldLocalPosition, smoothstep, swayStep, swingPose, wrapAngleRad, type SwayState,
 } from './handMath';
 
 const DEG = Math.PI / 180;
@@ -87,7 +87,9 @@ export class Hand {
   /** 장비를 집는다. 장비가 지금 보이는 방향을 유지하도록 손 기준 회전을 정한다. */
   pick(inst: EquipmentInstance, playerYawRad: number): void {
     if (this.state.kind !== 'empty') return;
-    this.heldYawRad = wrapAngleRad(inst.rotationYDeg * DEG - playerYawRad);
+    const natural = wrapAngleRad(inst.rotationYDeg * DEG - playerYawRad);
+    const { hands, grips } = inst.def.hold;
+    this.heldYawRad = hands === 2 ? twoHandYawRad(grips, natural) : natural;
     this.state = { kind: 'picking', inst, swingS: 0, grab: null };
   }
 
