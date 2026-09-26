@@ -37,6 +37,7 @@ const CABLE_REASON_TEXT = {
   direction: '출력과 입력을 이어야 해요',
   'port-busy': '이미 케이블이 꽂힌 포트예요',
   'unknown-port': '포트를 찾을 수 없어요',
+  light: '빛은 케이블 없이 전달돼요',
 } as const;
 
 /**

@@ -8,7 +8,8 @@ import { cableAt, checkCable, portLookup, type Cable, type CableCheck, type Port
 import type { Signal } from '../signal/channels';
 import { portKey, SignalBus, type Emission, type PortRef } from '../signal/signalBus';
 import { inscribingRadiusM } from './footprint';
-import { localToWorld } from './ports';
+import { directionToWorld, localToWorld } from './ports';
+import type { OrientedBox } from '../physics/optics';
 import type { EquipmentRegistry } from './registry';
 import type { SetupFile, SetupItem } from './setup';
 import type { Behavior, EquipmentDefinition, PortDef } from './types';
@@ -73,7 +74,10 @@ export class EquipmentManager {
   cables: Cable[] = [];
   private pending: Emission[] = [];
   /** 장비 종류 → 밑넓이·높이(모델에서 한 번 계산). */
-  private readonly footprintByType = new Map<string, { radiusM: number; offsets: Cell[]; heightM: number }>();
+  private readonly footprintByType = new Map<
+    string,
+    { radiusM: number; offsets: Cell[]; heightM: number; boxMinM: [number, number, number]; boxMaxM: [number, number, number] }
+  >();
   /** 놓여 있는 장비의 3D 객체가 들어가는 그룹(월드 좌표). */
   readonly group = new THREE.Group();
   readonly grid: GridConfig;
@@ -174,6 +178,21 @@ export class EquipmentManager {
       for (const c of footprintCells(center, i.footprintOffsets)) out.add(cellKey(c));
     }
     return out;
+  }
+
+  /** 놓여 있는(들리지 않은) 장비 몸체 상자(월드, 모델 경계 상자) — 빛을 막는 것. id = 장비 id. */
+  bodyBoxes(): OrientedBox[] {
+    return this.instances.filter((i) => !i.held).map((i) => {
+      const f = this.footprintByType.get(i.type)!;
+      const yaw = i.rotationYDeg * DEG;
+      const localCenter: [number, number, number] = [0, 1, 2].map((k) => (f.boxMinM[k] + f.boxMaxM[k]) / 2) as [number, number, number];
+      return {
+        id: i.id,
+        centerM: localToWorld(localCenter, i.positionM, yaw),
+        halfM: [0, 1, 2].map((k) => (f.boxMaxM[k] - f.boxMinM[k]) / 2) as [number, number, number],
+        yawRad: yaw,
+      };
+    });
   }
 
   /** 놓인 장비의 각도 변경(밑넓이가 원이라 차지 셀은 그대로). 들고 있으면 false. */
@@ -281,14 +300,16 @@ export class EquipmentManager {
     portLookup((id) => this.get(id)?.type, this.registry.definitions)(addr);
 
   /** 모델이 내접하는 원의 반지름 → 격자 원. 종류별로 한 번만(모델을 하나 만들어 잰다). */
-  private async footprintFor(def: EquipmentDefinition): Promise<{ radiusM: number; offsets: Cell[]; heightM: number }> {
+  private async footprintFor(def: EquipmentDefinition) {
     let f = this.footprintByType.get(def.type);
     if (!f) {
       const model = await this.assets.create(def.asset);
       const radiusM = inscribingRadiusM(model);
       const box = new THREE.Box3().setFromObject(model);
       const heightM = box.isEmpty() ? 0 : box.max.y - Math.min(box.min.y, 0);
-      f = { radiusM, offsets: circleOffsets(radiusM, this.grid.cellSizeM), heightM };
+      const boxMinM = (box.isEmpty() ? [0, 0, 0] : box.min.toArray()) as [number, number, number];
+      const boxMaxM = (box.isEmpty() ? [0, 0, 0] : box.max.toArray()) as [number, number, number];
+      f = { radiusM, offsets: circleOffsets(radiusM, this.grid.cellSizeM), heightM, boxMinM, boxMaxM };
       this.footprintByType.set(def.type, f);
     }
     return f;
@@ -298,6 +319,7 @@ export class EquipmentManager {
   private async addPortMarkers(object: THREE.Object3D, deviceId: string, def: EquipmentDefinition): Promise<Map<string, THREE.Object3D>> {
     const markers = new Map<string, THREE.Object3D>();
     for (const p of def.ports) {
+      if (p.channel === 'Light') continue; // 빛 포트는 케이블을 꽂지 않으므로 표시·탭 대상 없음
       const holder = new THREE.Group(); // 포트 위치에 중심을 둔다
       holder.position.set(...p.positionM);
       holder.userData.port = { deviceId, portId: p.id } satisfies PortAddress;
@@ -325,6 +347,8 @@ export class EquipmentManager {
         channel: p.channel,
         direction: p.direction,
         worldPosM: localToWorld(p.positionM, inst.positionM, inst.rotationYDeg * DEG),
+        ...(p.directionLocal ? { worldDirM: directionToWorld(p.directionLocal, inst.rotationYDeg * DEG) } : {}),
+        ...(p.faceSizeM ? { faceSizeM: p.faceSizeM } : {}),
       })),
     );
   }

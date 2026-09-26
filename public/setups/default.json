@@ -1,13 +1,14 @@
 {
   "version": 2,
   "equipment": [
-    { "id": "source-1", "type": "test-source", "positionM": [-2.5, 0.75, -2.6], "rotationYDeg": 0, "params": { "voltageV": 5 } },
-    { "id": "probe-1", "type": "test-probe", "positionM": [-1.9, 0.75, -2.6], "rotationYDeg": 0, "params": {} },
+    { "id": "power-1", "type": "power-supply", "positionM": [-2.3, 0.75, -2.4], "rotationYDeg": 0, "params": { "voltageV": 5 } },
+    { "id": "laser-1", "type": "laser", "positionM": [-2.75, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
+    { "id": "screen-1", "type": "screen", "positionM": [-1.6, 0.75, -2.6], "rotationYDeg": -90, "params": {} },
     { "id": "source-2", "type": "test-source", "positionM": [-4.0, 0.91, -4.75], "rotationYDeg": 0, "params": { "voltageV": 5 } },
     { "id": "probe-2", "type": "test-probe", "positionM": [-3.4, 0.91, -4.75], "rotationYDeg": 0, "params": {} },
-    { "id": "source-3", "type": "test-source", "positionM": [-4.75, 0.465, -2.0], "rotationYDeg": 90, "params": { "voltageV": 5 } }
+    { "id": "screen-2", "type": "screen", "positionM": [-4.75, 0.465, -2.0], "rotationYDeg": 90, "params": {} }
   ],
   "cables": [
-    { "from": { "deviceId": "source-1", "portId": "out" }, "to": { "deviceId": "probe-1", "portId": "in" } }
+    { "from": { "deviceId": "power-1", "portId": "out" }, "to": { "deviceId": "laser-1", "portId": "power" } }
   ]
 }

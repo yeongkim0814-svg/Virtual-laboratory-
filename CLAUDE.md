@@ -75,6 +75,15 @@
 - `src/geom/rect.ts` — 회전된 직사각형(안/밖, 셀 포함, 선분 교차, 가장 가까운 변, 밀어내기; 순수 함수)
 - `src/room/furnitureParts.ts` — 가구 부품(테이블: 상판·다리, 찬장: 판·선반), 선반 높이, 다리 자리(순수 함수)
 - `src/room/surfaces.ts` — 놓을 수 있는 면(바닥 + 테이블 윗면 + 찬장 선반), 면별 허용 셀·빈 높이·케이블 나가는 변
+- `src/physics/optics.ts` — 광학(승인 규칙): R1 광선 직진·교차(traceRay), R2 레이저 켜짐(정격 5 V 이상),
+  R4 파장 → 색(Bruton 1996 근사). R3 공기 중 손실 없음(라우터가 신호 값 그대로 전달)
+- `src/signal/lightRouter.ts` — Light 채널 라우터: 출구에서 광선 추적 → 처음 닿는 받는 면(Light 입력)에 전달,
+  장비 몸체·가구·벽은 막음. 이번 프레임 빛 목록(beams) 기록
+- `src/interaction/laserView.ts` — 빛 선·빛 점 그리기(색 = 파장, 외형 = assets.json laserBeam)
+- 장비: power-supply(직류 전원), laser(전기 입력 → 빛 출력, +z), screen(빛 받는 면 +z, 세기·파장 표시), test-*(채널 확인용)
+- Light 포트: 정의에 directionLocal(단위벡터), 입력은 faceSizeM. 케이블로 잇지 않음.
+  params/readouts 의 displayScale: 값은 SI 로 저장, 표시는 × 배율(예: 파장 m → nm 1e9)
+- 광축 높이: 광학 장비의 빛 출구·받는 면 중심은 놓인 면에서 0.10 m
 - `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)
 - `src/equipment/footprint.ts` — 모델이 내접하는 밑면 원 반지름(모델 꼭짓점 중 수직축에서 가장 먼 수평 거리)
 - `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)

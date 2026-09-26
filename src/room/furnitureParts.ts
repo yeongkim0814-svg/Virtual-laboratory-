@@ -3,6 +3,7 @@
 
 import type { CupboardDef, FurnitureDef, TableDef, Vec3 } from '../config/types';
 import { toWorld, type Rect } from '../geom/rect';
+import type { OrientedBox } from '../physics/optics';
 
 const DEG = Math.PI / 180;
 
@@ -70,4 +71,21 @@ export function shelfRect(f: CupboardDef): Rect {
   const t = f.panelThicknessM;
   const [x, z] = toWorld(r, 0, t / 2);
   return { xM: x, zM: z, hxM: (f.sizeM[0] - 2 * t) / 2, hzM: (f.sizeM[2] - t) / 2, yawRad: r.yawRad };
+}
+
+/** 가구 부품 상자(월드) — 빛을 막는 것. id = "가구id#부품번호". */
+export function furnitureBoxes(furniture: readonly FurnitureDef[]): OrientedBox[] {
+  return furniture.flatMap((f) => {
+    const r = furnitureRect(f);
+    const parts = f.type === 'table' ? tableParts(f) : cupboardParts(f);
+    return parts.map((p, i) => {
+      const [x, z] = toWorld(r, p.positionM[0], p.positionM[2]);
+      return {
+        id: `${f.id}#${i}`,
+        centerM: [x, p.positionM[1] + p.sizeM[1] / 2, z] as Vec3,
+        halfM: [p.sizeM[0] / 2, p.sizeM[1] / 2, p.sizeM[2] / 2] as Vec3,
+        yawRad: r.yawRad,
+      };
+    });
+  });
 }

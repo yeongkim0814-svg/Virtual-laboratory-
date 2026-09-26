@@ -13,6 +13,9 @@ import { SignalBus } from './signal/signalBus';
 import { cableRouter } from './signal/cables';
 import { CableView } from './signal/cableView';
 import { CableLayout } from './signal/cableLayout';
+import { LightRouter } from './signal/lightRouter';
+import { LaserView } from './interaction/laserView';
+import { furnitureBoxes } from './room/furnitureParts';
 import { EquipmentPanel } from './ui/equipmentPanel';
 import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
@@ -50,14 +53,20 @@ async function main(): Promise<void> {
   const surfaces = new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM);
   scene.add(room);
 
-  // 신호는 케이블로만 전달(장비끼리 직접 참조 없음). 케이블 목록은 매니저가 가진다.
-  const bus = new SignalBus(cableRouter(() => equipment.cables));
+  // 신호는 케이블(전기) 또는 광선 추적(빛)으로만 전달(장비끼리 직접 참조 없음).
+  const light = new LightRouter({
+    bodyBoxes: () => equipment.bodyBoxes(),
+    furnitureBoxes: furnitureBoxes(lab.furniture),
+    room: lab.room,
+  });
+  const bus = new SignalBus(cableRouter(() => equipment.cables), { Light: light.router });
   const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
     grid: { cellSizeM: lab.grid.cellSizeM, surfaces },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
   });
   const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);
   const cableView = new CableView(scene, cableLayout.routes, assetsFile.wiring);
+  const laserView = new LaserView(scene, assetsFile.laserBeam);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
@@ -117,7 +126,9 @@ async function main(): Promise<void> {
     interaction.update();
     if (cableLayout.update().length > 0) holdControls.notify('케이블이 빠졌어요 (너무 멀거나 길이 막힘)');
     cableView.update();
+    light.beginFrame();
     equipment.update(dtS);
+    laserView.update(light.beams);
     panel.tick();
     holdControls.tick();
     renderer.render(scene, camera);

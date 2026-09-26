@@ -19,11 +19,12 @@ const sameAddress = (a: PortAddress, b: PortAddress): boolean => a.deviceId === 
 
 export type CableCheck =
   | { ok: true; cable: Cable }
-  | { ok: false; reason: 'same-device' | 'channel' | 'direction' | 'port-busy' | 'unknown-port' };
+  | { ok: false; reason: 'same-device' | 'channel' | 'direction' | 'port-busy' | 'unknown-port' | 'light' };
 
 /**
  * 두 포트를 케이블로 이을 수 있는지. 순서는 상관없다(출력→입력으로 정리해서 돌려준다).
  * 규칙: 서로 다른 장비, 같은 채널, 하나는 out·하나는 in, 각 포트는 케이블 하나만.
+ * Light 포트는 케이블로 잇지 않는다(빛은 광선 추적으로 전달).
  */
 export function checkCable(
   a: PortAddress,
@@ -34,6 +35,7 @@ export function checkCable(
   const pa = portOf(a);
   const pb = portOf(b);
   if (!pa || !pb) return { ok: false, reason: 'unknown-port' };
+  if (pa.channel === 'Light' || pb.channel === 'Light') return { ok: false, reason: 'light' };
   if (a.deviceId === b.deviceId) return { ok: false, reason: 'same-device' };
   if (pa.channel !== pb.channel) return { ok: false, reason: 'channel' };
   if (pa.direction === pb.direction) return { ok: false, reason: 'direction' };

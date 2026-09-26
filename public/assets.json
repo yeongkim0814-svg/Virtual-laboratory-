@@ -8,7 +8,10 @@
     "hand-left": null,
     "port-marker": null,
     "table": null,
-    "cupboard": null
+    "cupboard": null,
+    "power-supply": null,
+    "laser": null,
+    "screen": null
   },
   "placeholders": {
     "floor": {
@@ -46,6 +49,18 @@
     "cupboard": {
       "color": "#8d6e63",
       "sizeM": [10, 1.8, 0.5]
+    },
+    "power-supply": {
+      "color": "#546e7a",
+      "sizeM": [0.2, 0.12, 0.15]
+    },
+    "laser": {
+      "color": "#37474f",
+      "sizeM": [0.06, 0.13, 0.2]
+    },
+    "screen": {
+      "color": "#eceff1",
+      "sizeM": [0.24, 0.2, 0.02]
     }
   },
   "environment": {
@@ -75,5 +90,11 @@
     "tubeRadiusM": 0.006,
     "opacity": 0.9,
     "liftM": 0.01
+  },
+  "laserBeam": {
+    "showBeam": true,
+    "beamRadiusM": 0.0015,
+    "beamOpacity": 0.45,
+    "spotRadiusM": 0.004
   }
 }

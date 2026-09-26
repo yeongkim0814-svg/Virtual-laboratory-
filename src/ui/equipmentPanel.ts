@@ -1,5 +1,5 @@
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
-import { decimalsForStep, formatValue } from './formatValue';
+import { decimalsForStep, formatValue, toDisplay } from './formatValue';
 
 const READOUT_DECIMALS = 2;
 
@@ -12,7 +12,7 @@ export class EquipmentPanel {
   private readonly list: HTMLDivElement;
   private readonly detail: HTMLDivElement;
   private selectedId: string | null = null;
-  private readoutEls: { inst: EquipmentInstance; key: string; unit: string; el: HTMLElement }[] = [];
+  private readoutEls: { inst: EquipmentInstance; key: string; unit: string; scale: number; el: HTMLElement }[] = [];
 
   constructor(
     private readonly manager: EquipmentManager,
@@ -71,7 +71,8 @@ export class EquipmentPanel {
   tick(): void {
     if (this.root.hidden) return;
     for (const r of this.readoutEls) {
-      r.el.textContent = formatValue(r.inst.readouts[r.key], r.unit, READOUT_DECIMALS);
+      const v = r.inst.readouts[r.key];
+      r.el.textContent = formatValue(v === null ? null : toDisplay(v, r.scale), r.unit, READOUT_DECIMALS);
     }
   }
 
@@ -84,23 +85,25 @@ export class EquipmentPanel {
     }
     const rows: HTMLElement[] = [];
 
-    // params → 슬라이더 자동 생성
+    // params → 슬라이더 자동 생성(슬라이더는 표시 단위, 값은 SI 로 저장)
     for (const p of inst.def.params) {
       const row = div('row');
       const label = document.createElement('label');
       const value = document.createElement('span');
-      const decimals = decimalsForStep(p.step);
+      const scale = p.displayScale ?? 1;
+      const step = toDisplay(p.step, scale);
+      const decimals = decimalsForStep(step);
       const slider = document.createElement('input');
       slider.type = 'range';
-      slider.min = String(p.min);
-      slider.max = String(p.max);
-      slider.step = String(p.step);
-      slider.value = String(inst.params[p.key]);
+      slider.min = String(toDisplay(p.min, scale));
+      slider.max = String(toDisplay(p.max, scale));
+      slider.step = String(step);
+      slider.value = String(toDisplay(inst.params[p.key], scale));
       const show = (): void => {
-        value.textContent = formatValue(inst.params[p.key], p.unit, decimals);
+        value.textContent = formatValue(toDisplay(inst.params[p.key], scale), p.unit, decimals);
       };
       slider.addEventListener('input', () => {
-        inst.params[p.key] = Number(slider.value);
+        inst.params[p.key] = Number(slider.value) / scale;
         show();
       });
       show();
@@ -113,7 +116,7 @@ export class EquipmentPanel {
       const row = div('row readout');
       const value = document.createElement('span');
       row.append(`${r.label} `, value);
-      this.readoutEls.push({ inst, key: r.key, unit: r.unit, el: value });
+      this.readoutEls.push({ inst, key: r.key, unit: r.unit, scale: r.displayScale ?? 1, el: value });
       rows.push(row);
     }
 

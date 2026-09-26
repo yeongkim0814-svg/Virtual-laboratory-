@@ -7,6 +7,13 @@ export interface PortDef {
   direction: 'in' | 'out';
   /** 장비 로컬 좌표(원점=바닥 중앙, 회전 전). */
   positionM: Vec3;
+  /**
+   * Light 포트만: 장비 로컬 방향(단위벡터). 출력 = 빛이 나가는 방향, 입력 = 받는 면의 바깥 법선.
+   * Light 는 케이블이 아니라 광선 추적으로 전달된다.
+   */
+  directionLocal?: Vec3;
+  /** Light 입력만: 빛을 받는 면 크기 [가로, 세로] (면 중심 = positionM, 가로축 = 로컬 y축 × 법선). */
+  faceSizeM?: [number, number];
 }
 
 /** 조정 가능한 수치. 슬라이더 UI 는 이 선언에서 자동 생성된다. */
@@ -18,6 +25,8 @@ export interface ParamDef {
   max: number;
   step: number;
   default: number;
+  /** 화면 표시 배율(값은 SI 로 저장, 표시는 값 × 배율 + unit). 예: 파장 m → nm 이면 1e9. 기본 1. */
+  displayScale?: number;
 }
 
 /** 장비가 표시하는 읽기 전용 값(측정값 등). */
@@ -25,6 +34,8 @@ export interface ReadoutDef {
   key: string;
   label: string;
   unit: string;
+  /** 화면 표시 배율(ParamDef 와 같음). */
+  displayScale?: number;
 }
 
 /** 장비 정의(JSON). devices/<type>/definition.json */

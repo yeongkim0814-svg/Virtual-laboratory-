@@ -36,12 +36,14 @@ describe('장비 등록', () => {
   it('기본 세팅은 실제 방(lab.json 가구·격자)에서 배치 규칙을 통과한다(선반·테이블 위, 안 겹침)', async () => {
     const lab = JSON.parse(readFileSync('public/lab.json', 'utf8')) as LabFile;
     const surfaces = new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM);
-    const m = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => []), {
+    // 실제 placeholder 크기(assets.json)로 밑넓이를 계산
+    const realAssets = { create: async (name: string) => createPlaceholderBox(assetsFile.placeholders[name].sizeM!, '#000000') };
+    const m = new EquipmentManager(new THREE.Scene(), registry, realAssets, busFor(() => []), {
       grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0,
     });
     const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions);
     const placed = await m.validate(setup);
-    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
+    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
   });
   it('기본 세팅(public/setups/default.json)을 불러올 수 있다', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));
@@ -52,7 +54,7 @@ describe('장비 등록', () => {
 describe('validateDefinition', () => {
   const good: EquipmentDefinition = {
     type: 'x', label: 'x', asset: 'x', hold: { hands: 1, grips: [[0, 0.1, 0]] }, channels: ['Light'],
-    ports: [{ id: 'p', channel: 'Light', direction: 'in', positionM: [0, 0, 0] }],
+    ports: [{ id: 'p', channel: 'Light', direction: 'in', positionM: [0, 0, 0], directionLocal: [0, 0, 1], faceSizeM: [0.2, 0.1] }],
     params: [{ key: 'k', label: 'k', unit: '', min: 0, max: 1, step: 0.1, default: 0.5 }],
     readouts: [],
   };
@@ -64,6 +66,14 @@ describe('validateDefinition', () => {
   it('default 가 범위 밖이면 오류', () => {
     const bad = { ...good, params: [{ ...good.params[0], default: 2 }] };
     expect(validateDefinition(bad).join()).toContain('범위 오류');
+  });
+  it('Light 포트에 방향(단위벡터)이 없거나, 입력에 받는 면 크기가 없으면 오류', () => {
+    const noDir = { ...good, ports: [{ ...good.ports[0], directionLocal: undefined }] };
+    expect(validateDefinition(noDir).join()).toContain('directionLocal');
+    const notUnit = { ...good, ports: [{ ...good.ports[0], directionLocal: [0, 0, 2] as [number, number, number] }] };
+    expect(validateDefinition(notUnit).join()).toContain('directionLocal');
+    const noFace = { ...good, ports: [{ ...good.ports[0], faceSizeM: undefined }] };
+    expect(validateDefinition(noFace).join()).toContain('faceSizeM');
   });
   it('hold 가 없으면 오류', () => {
     const bad = { ...good, hold: undefined } as unknown as EquipmentDefinition;

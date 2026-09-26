@@ -1,0 +1,18 @@
+{
+  "type": "laser",
+  "label": "레이저",
+  "asset": "laser",
+  "hold": { "hands": 1, "grips": [[0, 0.13, 0]] },
+  "channels": ["Electric", "Light"],
+  "ports": [
+    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0.05, -0.1] },
+    { "id": "beam", "channel": "Light", "direction": "out", "positionM": [0, 0.1, 0.1], "directionLocal": [0, 0, 1] }
+  ],
+  "params": [
+    { "key": "wavelengthM", "label": "파장", "unit": "nm", "displayScale": 1e9, "min": 4e-7, "max": 7e-7, "step": 1e-9, "default": 6.5e-7 },
+    { "key": "powerW", "label": "출력", "unit": "mW", "displayScale": 1000, "min": 0.0001, "max": 0.005, "step": 0.0001, "default": 0.001 }
+  ],
+  "readouts": [
+    { "key": "emittedPowerW", "label": "내보내는 빛", "unit": "mW", "displayScale": 1000 }
+  ]
+}

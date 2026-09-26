@@ -27,6 +27,16 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     if (!Array.isArray(p.positionM) || p.positionM.length !== 3 || !p.positionM.every(isNum)) {
       errs.push(`${at}: 포트 ${p.id} positionM 오류`);
     }
+    if (p.channel === 'Light') {
+      const dir = p.directionLocal;
+      if (!Array.isArray(dir) || dir.length !== 3 || !dir.every(isNum) || Math.abs(Math.hypot(...dir) - 1) > 1e-6) {
+        errs.push(`${at}: Light 포트 ${p.id} 는 directionLocal(단위벡터) 필요`);
+      }
+      const f = p.faceSizeM;
+      if (p.direction === 'in' && (!Array.isArray(f) || f.length !== 2 || !f.every((v) => isNum(v) && v > 0))) {
+        errs.push(`${at}: Light 입력 ${p.id} 는 faceSizeM [가로, 세로] 필요`);
+      }
+    }
   }
 
   const keys = new Set<string>();
@@ -34,7 +44,9 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     if (keys.has(p.key)) errs.push(`${at}: param 키 중복 ${p.key}`);
     keys.add(p.key);
     if (![p.min, p.max, p.step, p.default].every(isNum)) errs.push(`${at}: param ${p.key} 숫자 오류`);
-    else if (!(p.min <= p.default && p.default <= p.max && p.step > 0)) {
+    else if (p.displayScale !== undefined && !(isNum(p.displayScale) && p.displayScale > 0)) {
+      errs.push(`${at}: param ${p.key} displayScale 는 양수`);
+    } else if (!(p.min <= p.default && p.default <= p.max && p.step > 0)) {
       errs.push(`${at}: param ${p.key} 범위 오류 (min ≤ default ≤ max, step > 0)`);
     }
   }

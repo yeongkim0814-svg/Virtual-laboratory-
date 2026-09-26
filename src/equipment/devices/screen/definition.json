@@ -1,0 +1,15 @@
+{
+  "type": "screen",
+  "label": "스크린",
+  "asset": "screen",
+  "hold": { "hands": 1, "grips": [[0, 0.2, 0]] },
+  "channels": ["Light"],
+  "ports": [
+    { "id": "face", "channel": "Light", "direction": "in", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1], "faceSizeM": [0.2, 0.15] }
+  ],
+  "params": [],
+  "readouts": [
+    { "key": "receivedPowerW", "label": "받은 빛 세기", "unit": "mW", "displayScale": 1000 },
+    { "key": "wavelengthM", "label": "파장", "unit": "nm", "displayScale": 1e9 }
+  ]
+}

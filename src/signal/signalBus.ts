@@ -9,6 +9,10 @@ export interface PortRef {
   channel: Channel;
   direction: 'in' | 'out';
   worldPosM: Vec3;
+  /** Light 포트만: 월드 방향(출력 = 빛이 나가는 방향, 입력 = 받는 면 바깥 법선). */
+  worldDirM?: Vec3;
+  /** Light 입력만: 받는 면 크기 [가로, 세로]. */
+  faceSizeM?: [number, number];
 }
 
 export interface Emission {
@@ -17,7 +21,7 @@ export interface Emission {
 }
 
 /** 출력 포트 하나가 어느 입력 포트들에 닿는지 결정한다. 채널별로 교체 가능. */
-export type Router = (from: PortRef, inputs: readonly PortRef[]) => PortRef[];
+export type Router = (from: PortRef, inputs: readonly PortRef[], signal: Signal) => PortRef[];
 
 export const portKey = (deviceId: string, portId: string): string => `${deviceId}/${portId}`;
 
@@ -36,7 +40,7 @@ export class SignalBus {
     const out = new Map<string, Signal[]>();
     for (const e of emissions) {
       const router = this.routers[e.from.channel] ?? this.defaultRouter;
-      for (const target of router(e.from, inputs)) {
+      for (const target of router(e.from, inputs, e.signal)) {
         const k = portKey(target.deviceId, target.portId);
         const list = out.get(k);
         if (list) list.push(e.signal);

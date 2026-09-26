@@ -10,3 +10,11 @@ export function localToWorld(localM: Vec3, positionM: Vec3, rotationYRad: number
   const s = Math.sin(rotationYRad);
   return [positionM[0] + x * c + z * s, positionM[1] + y, positionM[2] - x * s + z * c];
 }
+
+/** 장비 로컬 방향 → 월드 방향(y축 회전만). */
+export function directionToWorld(dirLocal: Vec3, rotationYRad: number): Vec3 {
+  const [x, y, z] = dirLocal;
+  const c = Math.cos(rotationYRad);
+  const s = Math.sin(rotationYRad);
+  return [x * c + z * s, y, -x * s + z * c];
+}
