@@ -57,8 +57,6 @@
   "wiring": {
     "cableColor": "#222222",
     "cableRadiusM": 0.006,
-    "cableSagRatio": 0.15,
-    "cableSegments": 16,
     "portHitRadiusM": 0.07,
     "selectedPortScale": 1.8
   }

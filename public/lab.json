@@ -7,6 +7,11 @@
   "grid": {
     "cellSizeM": 0.05
   },
+  "cable": {
+    "maxLengthM": 1.5,
+    "portStubM": 0.03,
+    "clearanceM": 0.01
+  },
   "player": {
     "startPositionM": [0, 0, 3],
     "startYawDeg": 0,

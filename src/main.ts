@@ -12,6 +12,7 @@ import { parseSetup, serializeSetup } from './equipment/setup';
 import { SignalBus } from './signal/signalBus';
 import { cableRouter } from './signal/cables';
 import { CableView } from './signal/cableView';
+import { CableLayout } from './signal/cableLayout';
 import { EquipmentPanel } from './ui/equipmentPanel';
 import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
@@ -52,7 +53,8 @@ async function main(): Promise<void> {
     grid: { cellSizeM: lab.grid.cellSizeM, room: lab.room },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
   });
-  const cableView = new CableView(scene, equipment, assetsFile.wiring);
+  const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM);
+  const cableView = new CableView(scene, cableLayout.routes, assetsFile.wiring);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
@@ -63,7 +65,7 @@ async function main(): Promise<void> {
   const holdControls = new HoldControls(hand);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
   const interaction = new Interaction(
-    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
+    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale, cableLayout,
   );
 
   const panel = new EquipmentPanel(equipment, {
@@ -104,6 +106,7 @@ async function main(): Promise<void> {
     for (const tap of controls.consumeTaps()) interaction.handleTap(tap);
     hand.update(dtS, look, player.walkedM);
     interaction.update();
+    if (cableLayout.update().length > 0) holdControls.notify('케이블이 빠졌어요 (너무 멀거나 길이 막힘)');
     cableView.update();
     equipment.update(dtS);
     panel.tick();

@@ -58,14 +58,15 @@
 - `public/assets.json`
   - `assets`: 에셋 이름 → `.glb 경로` 또는 `null`(placeholder)
   - `placeholders`: null 일 때의 외형(색, 두께) / `environment`: 배경색·조명 / `placementPreview`: 배치 미리보기 색·투명도
-  - `wiring`: 케이블 색·굵기·처짐, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker`
-- `public/lab.json` — 방 크기, 격자(cellSizeM), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
+  - `wiring`: 케이블 색·굵기, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker`
+- `public/lab.json` — 방 크기, 격자(cellSizeM), 케이블(최대 길이 등), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
 - `src/assets/` — AssetRegistry(이름 → Object3D), placeholder 상자(원점=바닥 중앙)
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
 - `src/input/` — controlMath(순수 함수), touchControls(Touch Events, 멀티터치)
 - `src/player/` — 1인칭 카메라
 - `src/signal/` — channels(채널 목록·Signal 타입), signalBus(라우터 기반 전달, 채널별 Router 교체 가능),
-  cables(케이블 규칙·케이블 라우터, 순수 함수), cableView(케이블 그리기, 처짐은 보기용)
+  cables(케이블 규칙·케이블 라우터, 순수 함수), cableRoute(케이블 경로: 장비 원을 피해 바닥으로, 순수 함수),
+  cableLayout(매 프레임 경로 갱신·최대 길이 넘으면 빠짐), cableView(경로를 튜브로 그리기)
 - `src/equipment/` — registry(devices/ 자동 수집), equipmentManager(프레임 갱신, 1프레임 지연 전달), setup(세팅 JSON 저장/불러오기), ports(로컬→월드)
 - `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)
 - `src/equipment/footprint.ts` — 모델이 내접하는 밑면 원 반지름(모델 꼭짓점 중 수직축에서 가장 먼 수평 거리)
@@ -86,6 +87,8 @@
 4. 세팅 JSON(`public/setups/*.json`)에 배치
 - 포트 연결: 케이블. 빈손으로 포트 탭 → 다른 포트 탭 = 연결(같은 채널, out↔in, 다른 장비, 포트당 1개).
   꽂힌 포트를 탭하면 뽑기. 세팅 JSON(version 2)의 cables 에 저장. 들고 있는 동안 신호만 끊김(케이블은 꽂힌 채)
+  케이블 = 늘어나지 않는 줄(lab.json cable.maxLengthM). 장비를 피해 가는 경로가 최대 길이보다 길면
+  연결 불가 / 연결 중이면 빠짐. 용도: 전원선·센서 연결선(회로 설계용 아님)
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 명령: `npm run dev` / `npm test` / `npm run build`

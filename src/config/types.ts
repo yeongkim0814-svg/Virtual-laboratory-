@@ -30,13 +30,10 @@ export interface AssetsFile {
   wiring: WiringStyle;
 }
 
-/** 케이블·포트 외형. 케이블 처짐은 보기용(물리 계산 아님). */
+/** 케이블·포트 외형. */
 export interface WiringStyle {
   cableColor: string;
   cableRadiusM: number;
-  /** 케이블 가운데가 처지는 정도 = 두 끝 거리 × 이 값. */
-  cableSagRatio: number;
-  cableSegments: number;
   /** 포트 탭 판정 반경(보이지 않음). 작은 포트를 손가락으로 누르기 쉽게. */
   portHitRadiusM: number;
   /** 케이블을 이을 포트를 골랐을 때 포트 표시 확대 배율. */
@@ -65,6 +62,11 @@ export interface LabFile {
   room: RoomSize;
   /** 장비 배치 격자. 셀 중심 = (k·cellSizeM), 방 중심이 셀 (0,0) 중심. */
   grid: { cellSizeM: number };
+  /**
+   * 케이블(전원선·연결선). 늘어나지 않는 줄: 장비를 피해 가는 경로가 maxLengthM 보다 길면
+   * 연결할 수 없고, 연결 중이면 빠진다.
+   */
+  cable: { maxLengthM: number; portStubM: number; clearanceM: number };
   player: {
     startPositionM: Vec3;
     startYawDeg: number;

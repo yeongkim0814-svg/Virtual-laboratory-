@@ -9,6 +9,7 @@ import type { Hand, PlacementPose } from '../hand/hand';
 import { placementYawRad, withinReach } from '../hand/handMath';
 import type { Vec2 } from '../input/controlMath';
 import type { PlacementPreview } from './placementPreview';
+import type { CableLayout } from '../signal/cableLayout';
 
 const DEG = Math.PI / 180;
 const SCREEN_CENTER = new THREE.Vector2(0, 0);
@@ -55,6 +56,7 @@ export class Interaction {
     private readonly preview: PlacementPreview,
     private readonly notify: (msg: string) => void,
     private readonly selectedPortScale: number,
+    private readonly cableLayout: CableLayout,
   ) {}
 
   /** 매 프레임: 들고 있으면 시선이 닿는 바닥에 배치 미리보기. */
@@ -135,7 +137,16 @@ export class Interaction {
     this.selectPort(null);
     if (addressKey(sel) === addressKey(port)) return; // 같은 포트를 다시 탭 → 취소
     const r = this.manager.connect(sel, port);
-    this.notify(r.ok ? '케이블을 이었어요' : CABLE_REASON_TEXT[r.reason]);
+    if (!r.ok) {
+      this.notify(CABLE_REASON_TEXT[r.reason]);
+      return;
+    }
+    if (!this.cableLayout.canRoute(r.cable.from, r.cable.to)) {
+      this.manager.disconnect(r.cable.from);
+      this.notify(`케이블이 닿지 않아요 (최대 ${this.cableLayout.maxLengthM} m, 장비를 피해 가는 길이)`);
+      return;
+    }
+    this.notify('케이블을 이었어요');
   }
 
   /** 고른 포트 표시를 키우고, 이전 것은 되돌린다. */

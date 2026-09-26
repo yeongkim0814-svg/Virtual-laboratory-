@@ -26,6 +26,8 @@ export interface EquipmentInstance extends SetupItem {
   held: boolean;
   /** 밑넓이 원의 셀 오프셋(중심 셀 기준). 모델이 내접하는 원 → 격자. */
   footprintOffsets: Cell[];
+  /** 모델이 내접하는 밑면 원의 반지름. */
+  footprintRadiusM: number;
 }
 
 export interface GridConfig {
@@ -66,8 +68,8 @@ export class EquipmentManager {
   readonly instances: EquipmentInstance[] = [];
   cables: Cable[] = [];
   private pending: Emission[] = [];
-  /** 장비 종류 → 밑넓이 셀 오프셋 (모델에서 한 번 계산). */
-  private readonly offsetsByType = new Map<string, Cell[]>();
+  /** 장비 종류 → 밑넓이(모델에서 한 번 계산). */
+  private readonly footprintByType = new Map<string, { radiusM: number; offsets: Cell[] }>();
   /** 놓여 있는 장비의 3D 객체가 들어가는 그룹(월드 좌표). */
   readonly group = new THREE.Group();
   readonly grid: GridConfig;
@@ -92,7 +94,7 @@ export class EquipmentManager {
     this.group.clear();
     this.instances.length = 0;
     this.pending = [];
-    for (const { item, def, offsets } of placed) {
+    for (const { item, def, offsets, radiusM } of placed) {
       const object = await this.assets.create(def.asset);
       object.position.set(...item.positionM);
       object.rotation.y = item.rotationYDeg * DEG;
@@ -111,6 +113,7 @@ export class EquipmentManager {
         portMarkers,
         held: false,
         footprintOffsets: offsets,
+        footprintRadiusM: radiusM,
       });
     }
     this.cables = setup.cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } }));
@@ -120,13 +123,13 @@ export class EquipmentManager {
    * 세팅을 격자에 맞춰 검사한다(상태는 바꾸지 않음). 위치는 가장 가까운 셀 중심으로 맞춘 값을 돌려준다.
    * 밑넓이가 방 밖에 걸치거나 장비끼리 셀이 겹치면 오류.
    */
-  async validate(setup: SetupFile): Promise<{ item: SetupItem; def: EquipmentDefinition; offsets: Cell[] }[]> {
+  async validate(setup: SetupFile): Promise<{ item: SetupItem; def: EquipmentDefinition; offsets: Cell[]; radiusM: number }[]> {
     const { cellSizeM, room } = this.grid;
     const occupied = new Set<string>();
-    const out: { item: SetupItem; def: EquipmentDefinition; offsets: Cell[] }[] = [];
+    const out: { item: SetupItem; def: EquipmentDefinition; offsets: Cell[]; radiusM: number }[] = [];
     for (const item of setup.equipment) {
       const def = this.registry.definitions.get(item.type)!;
-      const offsets = await this.offsetsFor(def);
+      const { offsets, radiusM } = await this.footprintFor(def);
       const cell = worldToCell(item.positionM[0], item.positionM[2], cellSizeM);
       const cells = footprintCells(cell, offsets);
       const check = checkCells(cells, occupied, cellSizeM, room);
@@ -139,6 +142,7 @@ export class EquipmentManager {
         item: { ...item, positionM: [x, item.positionM[1], z], rotationYDeg: normalizeDeg(item.rotationYDeg) },
         def,
         offsets,
+        radiusM,
       });
     }
     return out;
@@ -259,14 +263,14 @@ export class EquipmentManager {
     portLookup((id) => this.get(id)?.type, this.registry.definitions)(addr);
 
   /** 모델이 내접하는 원의 반지름 → 격자 원. 종류별로 한 번만(모델을 하나 만들어 잰다). */
-  private async offsetsFor(def: EquipmentDefinition): Promise<Cell[]> {
-    let o = this.offsetsByType.get(def.type);
-    if (!o) {
-      const probe = await this.assets.create(def.asset);
-      o = circleOffsets(inscribingRadiusM(probe), this.grid.cellSizeM);
-      this.offsetsByType.set(def.type, o);
+  private async footprintFor(def: EquipmentDefinition): Promise<{ radiusM: number; offsets: Cell[] }> {
+    let f = this.footprintByType.get(def.type);
+    if (!f) {
+      const radiusM = inscribingRadiusM(await this.assets.create(def.asset));
+      f = { radiusM, offsets: circleOffsets(radiusM, this.grid.cellSizeM) };
+      this.footprintByType.set(def.type, f);
     }
-    return o;
+    return f;
   }
 
   /** 포트마다 표시(assets.json "port-marker")와 탭 판정용 보이지 않는 구를 단다. */
