@@ -7,6 +7,13 @@ import { describe, expect, it } from 'vitest';
 import type { AssetsFile } from '../src/config/types';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
 
+// GLTFLoader 는 브라우저 전역(self, createImageBitmap)을 기대한다. 테스트는 Node 환경이라
+// 텍스처가 있는 모델(손그림 아틀라스)을 불러올 때만 필요 — 지오메트리(위치·삼각형 수) 검사에는
+// 텍스처 내용이 영향 없으므로 최소한만 흉내낸다(실제 디코딩 대신 1×1 텍스처로 대체).
+(globalThis as { self?: typeof globalThis }).self ??= globalThis;
+(globalThis as { createImageBitmap?: unknown }).createImageBitmap ??= async () =>
+  ({ width: 1, height: 1, close() {} }) as unknown as ImageBitmap;
+
 const assetsFile = JSON.parse(readFileSync('public/assets.json', 'utf8')) as AssetsFile;
 const models = Object.entries(assetsFile.assets).filter((e): e is [string, string] => e[1] !== null);
 const registry = loadEquipmentRegistry();

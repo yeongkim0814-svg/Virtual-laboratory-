@@ -12,7 +12,7 @@
     "power-supply": null,
     "laser": "models/laser.glb",
     "screen": null,
-    "double-slit": null,
+    "double-slit": "models/double-slit.glb",
     "table-outlet": null,
     "plug": null,
     "led": null,

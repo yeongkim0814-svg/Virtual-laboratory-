@@ -147,7 +147,16 @@
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사
-  (원점 = 바닥 중앙, 8,000 삼각형 이하, 빛 출구 = 모델 앞 끝). `tools/models/` = 모델 제작 스크립트(앱 코드 아님):
-  laser.mjs = 사용자 도면(스팀펑크 레이저)을 단순 부품으로 근사 → `node tools/models/laser.mjs`
+  (원점 = 바닥 중앙, 8,000 삼각형 이하, 빛 출구 = 모델 앞 끝). 물리(빛 차단 상자·격자 발판)는 모델의 실제
+  바운딩 박스로 정해지므로, 장식(리벳·테두리 등)은 기존 placeholder 크기(assets.json placeholders.*.sizeM)를
+  절대 넘지 않게 만든다(넘으면 기존 세팅의 장비 간격·차단 거리가 달라짐). `tools/models/` = 모델 제작
+  스크립트(앱 코드 아님):
+  - laser.mjs = 사용자 도면(스팀펑크 레이저)을 단순 부품으로 근사 → `node tools/models/laser.mjs`
+  - glbWriter.mjs: `buildGlb`(구 방식, 재질 여러 개·단색·평면) / `buildTexturedGlb`(새 방식, 재질 1개 +
+    텍스처 1장, smooth 플래그로 부품마다 매끈한 곡면 ↔ 평평한 모서리 선택)
+  - atlas.mjs: 손그림 느낌 색상 아틀라스를 절차적으로 그림(그러데이션 + 잡음 + 얼룩, 시드 고정)
+  - png.mjs: 외부 이미지 라이브러리 없이 PNG 인코딩(node zlib 만 사용) — 아틀라스를 텍스처로 굽는 데 씀
+  - doubleSlit.mjs = 이중 슬릿판(스타일라이즈드 로우폴리: 베벨 + 매끈한 셰이딩 + 손그림 텍스처) →
+    `node tools/models/doubleSlit.mjs`. 판 두께 ±0.01은 물리 그대로, 장식(리벳·테두리)은 그 안쪽에 파묻음
 - 명령: `npm run dev` / `npm test` / `npm run build`
 - 배포: main push → Actions 테스트·빌드 → Pages (https://yeongkim0814-svg.github.io/Virtual-laboratory-/)
