@@ -7,7 +7,7 @@ import type { AssetsFile, LabFile } from '../src/config/types';
 import { furnitureBoxes } from '../src/room/furnitureParts';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
-import { parseSetup } from '../src/equipment/setup';
+import { fixtureItems, parseSetup } from '../src/equipment/setup';
 import { Surfaces } from '../src/room/surfaces';
 import { cableRouter } from '../src/signal/cables';
 import { LightRouter } from '../src/signal/lightRouter';
@@ -17,13 +17,16 @@ const registry = loadEquipmentRegistry();
 const assetsFile = JSON.parse(readFileSync('public/assets.json', 'utf8')) as AssetsFile;
 const assets = { create: async (name: string) => createPlaceholderBox(assetsFile.placeholders[name].sizeM!, '#000000') };
 const room = { widthM: 10, depthM: 10, heightM: 3 };
+// 모든 배치에 바닥 콘센트(고정 장비)를 두고 전원 장치를 꽂는다(전원 장치는 콘센트에 꽂혀야 출력)
+const outlet = fixtureItems([{ id: 'wall', type: 'table-outlet', positionM: [-0.6, 0, 0.5], rotationYDeg: 180 }], registry.definitions);
+const mainsCable = { from: { deviceId: 'wall', portId: 'socket-1' }, to: { deviceId: 'ps', portId: 'mains' } };
 
-async function make(opts: { voltageV?: number; cable?: boolean; blocker?: boolean; screenYawDeg?: number } = {}) {
-  const { voltageV = 5, cable = true, blocker = false, screenYawDeg = 180 } = opts;
+async function make(opts: { voltageV?: number; cable?: boolean; mains?: boolean; blocker?: boolean; screenYawDeg?: number } = {}) {
+  const { voltageV = 5, cable = true, mains = true, blocker = false, screenYawDeg = 180 } = opts;
   let m!: EquipmentManager;
   const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
   m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0,
+    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, fixtures: outlet,
   });
   // 레이저 (0,0,0) 앞 = +z, 출구 z = 0.1. 스크린 (0,0,1) 을 180° 돌려 앞면(z = 0.99)이 레이저를 봄
   await m.load(parseSetup({
@@ -34,8 +37,8 @@ async function make(opts: { voltageV?: number; cable?: boolean; blocker?: boolea
       { id: 'screen', type: 'screen', positionM: [0, 0, 1], rotationYDeg: screenYawDeg },
       ...(blocker ? [{ id: 'block', type: 'test-probe', positionM: [0, 0, 0.5] }] : []),
     ],
-    cables: cable ? [{ from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }] : [],
-  }, registry.definitions));
+    cables: [...(mains ? [mainsCable] : []), ...(cable ? [{ from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }] : [])],
+  }, registry.definitions, outlet));
   const run = (n = 4) => {
     for (let i = 0; i < n; i++) {
       light.beginFrame();
@@ -73,6 +76,19 @@ describe('레이저 → 스크린', () => {
     expect(screen.readouts.receivedPowerW).toBe(0);
     expect(screen.readouts.wavelengthM).toBeNull();
   });
+  it('전원 장치가 콘센트에 안 꽂혀 있으면 출력 없음 → 레이저 꺼짐', async () => {
+    const { run, screen, laser, m } = await make({ mains: false });
+    run();
+    expect(m.get('ps')!.readouts.outputV).toBeNull();
+    expect(laser.readouts.emittedPowerW).toBe(0);
+    expect(screen.readouts.receivedPowerW).toBe(0);
+  });
+  it('콘센트(고정 장비)는 세팅 저장에 들어가지 않고, 꽂힌 케이블은 저장된다', async () => {
+    const { m } = await make();
+    const items = m.toSetupItems();
+    expect(items.map((i) => i.id)).not.toContain('wall');
+    expect(m.cables.some((c) => c.from.deviceId === 'wall')).toBe(true);
+  });
   it('R2: 케이블이 없으면 꺼짐', async () => {
     const { run, screen } = await make({ cable: false });
     run();
@@ -107,8 +123,9 @@ describe('레이저 → 스크린', () => {
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: furnitureBoxes(lab.furniture), room: lab.room });
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
       grid: { cellSizeM: lab.grid.cellSizeM, surfaces: new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM) }, portHitRadiusM: 0,
+      fixtures: fixtureItems(lab.fixtures, registry.definitions),
     });
-    await m.load(parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions));
+    await m.load(parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtureItems(lab.fixtures, registry.definitions)));
     for (let i = 0; i < 5; i++) {
       light.beginFrame();
       m.update(1 / 60);
@@ -127,7 +144,7 @@ describe('레이저 → 스크린', () => {
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0,
+      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, fixtures: outlet,
     });
     // 슬릿판을 옆으로 0.05 m 비켜 둠(조준 영역 반폭 0.01 밖, 판 반폭 0.06 안)
     await m.load(parseSetup({
@@ -138,8 +155,8 @@ describe('레이저 → 스크린', () => {
         { id: 'slit', type: 'double-slit', positionM: [0.05, 0, 0.4] },
         { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
       ],
-      cables: [{ from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }],
-    }, registry.definitions));
+      cables: [mainsCable, { from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }],
+    }, registry.definitions, outlet));
     for (let i = 0; i < 5; i++) {
       light.beginFrame();
       m.update(1 / 60);

@@ -5,7 +5,7 @@
   "hold": { "hands": 1, "grips": [[0, 0.13, 0]] },
   "channels": ["Electric", "Light"],
   "ports": [
-    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0.05, -0.1] },
+    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0.05, -0.1], "cord": { "plug": "dc" } },
     { "id": "beam", "channel": "Light", "direction": "out", "positionM": [0, 0.1, 0.1], "directionLocal": [0, 0, 1] }
   ],
   "params": [

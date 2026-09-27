@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { LabFile } from '../config/types';
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
 import { addressKey, type Cable, type PortAddress } from './cables';
-import { routeCable, type CableEnd, type CableRoute, type Circle, type Plane, type RouteConfig } from './cableRoute';
+import { looseCordRoute, routeCable, type CableEnd, type CableRoute, type Circle, type Plane, type RouteConfig } from './cableRoute';
 import { FLOOR, type Surfaces } from '../room/surfaces';
 
 const DEG = Math.PI / 180;
@@ -15,8 +15,19 @@ export const cableKey = (c: Cable): string => `${addressKey(c.from)}→${address
  * 케이블 배치: 매 프레임 각 케이블의 경로(장비를 피해 바닥을 지나는 선)를 정한다.
  * 최대 길이 안에서 경로가 없으면 그 케이블은 빠진다(update 가 돌려준다).
  */
+/** 플러그 하나(그리기·탭용): 위치, 꽂히는 방향(수평 단위벡터), 이 플러그가 달린 전원선 포트. */
+export interface PlugPose {
+  pointM: [number, number, number];
+  dir: [number, number];
+  cordPort: PortAddress;
+  plugged: boolean;
+}
+
 export class CableLayout {
+  /** 케이블 경로 + 뽑힌 전원선 경로(키 "loose:장비/포트"). */
   readonly routes = new Map<string, CableRoute>();
+  /** 전원선 플러그(꽂힌 것은 소켓 앞, 뽑힌 것은 전원선 끝). 키 = 전원선 포트 주소. */
+  readonly plugs = new Map<string, PlugPose>();
   private readonly cache = new Map<string, string>();
   private readonly cfg: RouteConfig;
 
@@ -34,7 +45,10 @@ export class CableLayout {
       clearanceM: lab.cable.clearanceM,
       maxLengthM: lab.cable.maxLengthM,
     };
+    this.restM = lab.cable.looseRestM;
   }
+
+  private readonly restM: number;
 
   get maxLengthM(): number {
     return this.cfg.maxLengthM;
@@ -76,6 +90,7 @@ export class CableLayout {
       this.cache.set(key, sig);
       alive.add(key);
     }
+    this.layoutCords(obstacles, obstacleSig, alive);
     for (const key of [...this.routes.keys()]) {
       if (!alive.has(key)) {
         this.routes.delete(key);
@@ -83,6 +98,39 @@ export class CableLayout {
       }
     }
     return broken;
+  }
+
+  /** 전원선: 꽂혀 있으면 소켓 쪽 끝에 플러그, 뽑혀 있으면 장비 옆에 놓인 짧은 선 + 플러그. */
+  private layoutCords(planes: Plane[], obstacleSig: string, alive: Set<string>): void {
+    this.plugs.clear();
+    for (const inst of this.manager.instances) {
+      for (const p of inst.def.ports) {
+        if (!p.cord) continue;
+        const addr = { deviceId: inst.id, portId: p.id };
+        const ak = addressKey(addr);
+        const cable = this.manager.cables.find((c) => addressKey(c.to) === ak || addressKey(c.from) === ak);
+        const route = cable && this.routes.get(cableKey(cable));
+        if (route) {
+          // 케이블 from = 소켓(출력). 플러그는 소켓에서 케이블 쪽으로 조금 나온 곳, 소켓을 향함
+          const [a, b] = route.pointsM;
+          const d = Math.hypot(b[0] - a[0], b[2] - a[2]) || 1;
+          this.plugs.set(ak, { pointM: a, dir: [(a[0] - b[0]) / d, (a[2] - b[2]) / d], cordPort: addr, plugged: true });
+          continue;
+        }
+        const end = this.end(addr);
+        if (!end) continue;
+        const key = `loose:${ak}`;
+        alive.add(key);
+        const sig = `${obstacleSig}|${sigOf(end)}`;
+        const plane = planes.find((pl) => pl.id === end.planeId)!;
+        const loose = looseCordRoute(end, plane.yM, this.cfg, this.restM);
+        if (this.cache.get(key) !== sig || !this.routes.has(key)) {
+          this.routes.set(key, { pointsM: loose.pointsM, lengthM: 0 });
+          this.cache.set(key, sig);
+        }
+        this.plugs.set(ak, { pointM: loose.plugM, dir: loose.plugDir, cordPort: addr, plugged: false });
+      }
+    }
   }
 
   /**

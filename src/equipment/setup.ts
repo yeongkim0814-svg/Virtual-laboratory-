@@ -34,18 +34,20 @@ const isVec3 = (v: unknown): v is Vec3 => Array.isArray(v) && v.length === 3 && 
 export function parseSetup(
   raw: unknown,
   definitions: ReadonlyMap<string, EquipmentDefinition>,
+  /** 방에 고정된 장비(lab.json fixtures). id 가 겹치면 안 되고, 케이블은 이들에도 꽂을 수 있다. */
+  fixtures: readonly { id: string; type: string }[] = [],
 ): SetupFile {
   if (typeof raw !== 'object' || raw === null) throw new Error('세팅: 객체가 아님');
   const r = raw as { version?: unknown; equipment?: unknown; cables?: unknown };
   if (r.version !== 1 && r.version !== SETUP_VERSION) throw new Error(`세팅: 지원하지 않는 version ${String(r.version)}`);
   if (!Array.isArray(r.equipment)) throw new Error('세팅: equipment 배열이 없음');
 
-  const ids = new Set<string>();
+  const ids = new Set<string>(fixtures.map((f) => f.id));
   const equipment = r.equipment.map((item: unknown, i): SetupItem => {
     const e = item as Partial<SetupItem>;
     const where = `세팅 equipment[${i}]`;
     if (typeof e.id !== 'string' || e.id === '') throw new Error(`${where}: id 없음`);
-    if (ids.has(e.id)) throw new Error(`${where}: 중복 id ${e.id}`);
+    if (ids.has(e.id)) throw new Error(`${where}: 중복 id ${e.id}(고정 장비 id 와도 겹치면 안 됨)`);
     ids.add(e.id);
     const def = typeof e.type === 'string' ? definitions.get(e.type) : undefined;
     if (!def) throw new Error(`${where}: 알 수 없는 장비 종류 ${String(e.type)}`);
@@ -65,7 +67,7 @@ export function parseSetup(
     return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params };
   });
 
-  const typeOf = new Map(equipment.map((e) => [e.id, e.type]));
+  const typeOf = new Map([...fixtures, ...equipment].map((e) => [e.id, e.type]));
   const portOf = portLookup((id) => typeOf.get(id), definitions);
   const rawCables = r.version === 1 ? [] : r.cables ?? [];
   if (!Array.isArray(rawCables)) throw new Error('세팅: cables 는 배열');
@@ -98,4 +100,22 @@ export function serializeSetup(equipment: readonly SetupItem[], cables: readonly
     cables: cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } })),
   };
   return JSON.stringify(file, null, 2);
+}
+
+/** lab.json fixtures → 세팅 항목(params 는 기본값). */
+export function fixtureItems(
+  fixtures: readonly { id: string; type: string; positionM: Vec3; rotationYDeg: number }[],
+  definitions: ReadonlyMap<string, EquipmentDefinition>,
+): SetupItem[] {
+  return fixtures.map((f) => {
+    const def = definitions.get(f.type);
+    if (!def?.fixed) throw new Error(`lab.json fixtures: ${f.id} 의 종류 ${f.type} 는 고정 장비(fixed)가 아님`);
+    return {
+      id: f.id,
+      type: f.type,
+      positionM: [...f.positionM] as Vec3,
+      rotationYDeg: f.rotationYDeg,
+      params: Object.fromEntries(def.params.map((p) => [p.key, p.default])),
+    };
+  });
 }

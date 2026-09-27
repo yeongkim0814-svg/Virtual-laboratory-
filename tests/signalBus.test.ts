@@ -17,6 +17,11 @@ const ports: Record<string, PortDef> = {
   'c/in': { id: 'in', channel: 'Electric', direction: 'in', positionM: [0, 0, 0] },
   't/in': { id: 'in', channel: 'Thermal', direction: 'in', positionM: [0, 0, 0] },
   'a/in2': { id: 'in2', channel: 'Electric', direction: 'in', positionM: [0, 0, 0] },
+  // 전원선·소켓
+  'laser/cord': { id: 'cord', channel: 'Electric', direction: 'in', positionM: [0, 0, 0], cord: { plug: 'dc' } },
+  'psu/cord': { id: 'cord', channel: 'Electric', direction: 'in', positionM: [0, 0, 0], cord: { plug: 'mains' } },
+  'psu/dc': { id: 'dc', channel: 'Electric', direction: 'out', positionM: [0, 0, 0], socket: 'dc' },
+  'wall/mains': { id: 'mains', channel: 'Electric', direction: 'out', positionM: [0, 0, 0], socket: 'mains' },
 };
 const portOf = (p: PortAddress) => ports[`${p.deviceId}/${p.portId}`];
 const at = (deviceId: string, portId: string): PortAddress => ({ deviceId, portId });
@@ -37,6 +42,15 @@ describe('checkCable', () => {
     expect(checkCable(at('a', 'out'), at('c', 'in'), portOf, busy)).toEqual({ ok: false, reason: 'port-busy' });
     expect(checkCable(at('a2', 'out'), at('b', 'in'), portOf, busy)).toEqual({ ok: false, reason: 'port-busy' });
     expect(checkCable(at('a', 'x'), at('b', 'in'), portOf, [])).toEqual({ ok: false, reason: 'unknown-port' });
+  });
+  it('전원선은 같은 종류 소켓에만: dc 플러그 → dc 단자 O, 콘센트(mains) X', () => {
+    expect(checkCable(at('laser', 'cord'), at('psu', 'dc'), portOf, []).ok).toBe(true);
+    expect(checkCable(at('psu', 'cord'), at('wall', 'mains'), portOf, []).ok).toBe(true);
+    expect(checkCable(at('laser', 'cord'), at('wall', 'mains'), portOf, [])).toEqual({ ok: false, reason: 'plug-kind' });
+  });
+  it('전원선을 일반 출력에 / 일반 입력을 소켓에 꽂을 수 없다', () => {
+    expect(checkCable(at('laser', 'cord'), at('a', 'out'), portOf, [])).toEqual({ ok: false, reason: 'needs-socket' });
+    expect(checkCable(at('b', 'in'), at('wall', 'mains'), portOf, [])).toEqual({ ok: false, reason: 'needs-plug' });
   });
   it('cableAt: 양쪽 끝 어느 쪽으로도 찾는다', () => {
     const cables: Cable[] = [{ from: at('a', 'out'), to: at('b', 'in') }];

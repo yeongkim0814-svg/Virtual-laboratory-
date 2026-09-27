@@ -38,6 +38,9 @@ const CABLE_REASON_TEXT = {
   'port-busy': '이미 케이블이 꽂힌 포트예요',
   'unknown-port': '포트를 찾을 수 없어요',
   light: '빛은 케이블 없이 전달돼요',
+  'plug-kind': '플러그와 콘센트 종류가 달라요',
+  'needs-socket': '전원선은 콘센트(전원 단자)에 꽂아요',
+  'needs-plug': '콘센트에는 전원선을 꽂아요',
 } as const;
 
 /**
@@ -70,6 +73,8 @@ export class Interaction {
     private readonly selectedPortScale: number,
     private readonly cableLayout: CableLayout,
     private readonly gizmo: RotateGizmo,
+    /** 전원선 플러그(탭하면 꽂기·뽑기 대상). */
+    private readonly plugGroup: THREE.Object3D,
   ) {}
 
   get isRotating(): boolean {
@@ -82,7 +87,7 @@ export class Interaction {
     this.raycaster.setFromCamera(this.ndc(pos), this.camera);
     const hit = this.raycaster.intersectObjects([this.manager.group, this.roomGroup], true)[0];
     const inst = hit && this.manager.findByObject(hit.object);
-    if (!inst || portAddressOf(hit.object) || inst.held) return false;
+    if (!inst || portAddressOf(hit.object) || inst.held || inst.def.fixed) return false;
     if (!withinReach(this.eye(), hit.point.toArray(), this.cfg.hand.reachM)) {
       this.notify('너무 멀어요. 더 가까이 가세요');
       return false;
@@ -135,11 +140,13 @@ export class Interaction {
     const held = this.hand.heldInstance;
     this.raycaster.setFromCamera(this.ndc(tap), this.camera);
     // 장비 앞을 가로막는 방 객체(찬장 옆판·선반 등)가 있으면 그 뒤 장비는 집을 수 없다
-    const hit = this.raycaster.intersectObjects([this.manager.group, this.roomGroup], true)[0];
+    const hit = this.raycaster.intersectObjects([this.manager.group, this.plugGroup, this.roomGroup], true)[0];
 
     if (!held) {
+      // 포트 표시 또는 전원선 플러그 → 꽂기·뽑기, 장비 몸체 → 집기
+      const port = hit && portAddressOf(hit.object);
       const inst = hit && this.manager.findByObject(hit.object);
-      if (!inst) {
+      if (!port && !inst) {
         this.selectPort(null);
         return;
       }
@@ -147,12 +154,16 @@ export class Interaction {
         this.notify('너무 멀어요. 더 가까이 가세요');
         return;
       }
-      const port = portAddressOf(hit.object);
       if (port) {
         this.tapPort(port);
         return;
       }
+      if (!inst) return;
       this.selectPort(null);
+      if (inst.def.fixed) {
+        this.notify('고정된 장비예요');
+        return;
+      }
       this.hand.pick(inst, this.player.yaw);
       return;
     }

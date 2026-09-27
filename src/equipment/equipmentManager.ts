@@ -42,6 +42,8 @@ export interface GridConfig {
 
 export interface ManagerOptions {
   grid: GridConfig;
+  /** 방에 고정된 장비(lab.json fixtures). 불러올 때마다 함께 놓이고 저장되지 않는다. */
+  fixtures?: readonly SetupItem[];
   /** 포트 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
   portHitRadiusM: number;
 }
@@ -114,7 +116,7 @@ export class EquipmentManager {
     const { cellSizeM, surfaces } = this.grid;
     const occupied = new Map<string, Set<string>>();
     const out: { item: SetupItem; def: EquipmentDefinition; surfaceId: string }[] = [];
-    for (const item of setup.equipment) {
+    for (const item of [...(this.options.fixtures ?? []), ...setup.equipment]) {
       const def = this.registry.definitions.get(item.type)!;
       const { offsets, heightM } = await this.footprintFor(def);
       const [px, py, pz] = item.positionM;
@@ -228,10 +230,10 @@ export class EquipmentManager {
 
   /**
    * 현재 상태를 세팅 항목으로 (저장용).
-   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다.
+   * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다. 고정 장비(lab.json fixtures)는 빠진다.
    */
   toSetupItems(): SetupItem[] {
-    return this.instances.map(({ id, type, positionM, rotationYDeg, params }) => ({
+    return this.instances.filter((i) => !i.def.fixed).map(({ id, type, positionM, rotationYDeg, params }) => ({
       id, type, positionM, rotationYDeg, params,
     }));
   }

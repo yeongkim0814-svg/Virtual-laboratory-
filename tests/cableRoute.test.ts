@@ -1,7 +1,7 @@
 // 케이블 경로 테스트 (기하·배치 규칙, 물리 규칙 아님). 기대값은 손계산.
 import { describe, expect, it } from 'vitest';
 import {
-  endStub, routeCable, segmentClear, segmentDistance, type CableEnd, type Circle, type Plane, type RouteConfig,
+  endStub, looseCordRoute, routeCable, segmentClear, segmentDistance, type CableEnd, type Circle, type Plane, type RouteConfig,
 } from '../src/signal/cableRoute';
 
 const cfg: RouteConfig = {
@@ -38,6 +38,21 @@ describe('endStub', () => {
   it('들고 있는 장비(body = null): 포트에서 바로 아래 바닥으로', () => {
     const s = endStub({ portM: [0.5, 0.8, 0.5], body: null, fallbackDir: [1, 0], planeId: 'floor' }, 0, cfg);
     expect(s.stub).toEqual([[0.5, 0.8, 0.5], [0.5, 0, 0.5]]);
+  });
+});
+
+describe('looseCordRoute (뽑힌 전원선)', () => {
+  it('포트 (−0.15, 0.1, 0), 장비 원 (−0.3, 0) r 0.18 → 출구 (−0.11, 0) 에서 +x 로 0.12 → 플러그 (0.01, 0, 0)', () => {
+    const r = looseCordRoute(endA, 0, cfg, 0.12);
+    expect(r.plugM[0]).toBeCloseTo(0.01, 6);
+    expect(r.plugM[2]).toBeCloseTo(0, 6);
+    expect(r.plugDir[0]).toBeCloseTo(1, 6);
+    expect(r.pointsM.at(-1)).toEqual(r.plugM);
+  });
+  it('들고 있는 장비(body = null): 포트 바로 아래로 내려간 뒤 fallbackDir 로', () => {
+    const r = looseCordRoute({ portM: [0.5, 0.8, 0.5], body: null, fallbackDir: [0, -1], planeId: 'floor' }, 0, cfg, 0.12);
+    expect(r.plugM[0]).toBeCloseTo(0.5, 6);
+    expect(r.plugM[2]).toBeCloseTo(0.38, 6);
   });
 });
 

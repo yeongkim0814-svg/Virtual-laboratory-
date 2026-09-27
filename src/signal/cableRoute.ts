@@ -106,6 +106,26 @@ export function endStub(end: CableEnd, planeYM: number, cfg: RouteConfig): { stu
   return { stub: [end.portM, [sx, py, sz], [ex, y, ez]], exit: [ex, ez] };
 }
 
+/**
+ * 뽑혀 있는 전원선: 포트 → (장비 밖으로) 면 → 바깥 방향으로 restM 만큼 놓인 끝(플러그).
+ * 짧은 구간이라 장애물은 검사하지 않는다.
+ */
+export function looseCordRoute(
+  end: CableEnd,
+  planeYM: number,
+  cfg: RouteConfig,
+  restM: number,
+): { pointsM: Vec3[]; plugM: Vec3; plugDir: [number, number] } {
+  const s = endStub(end, planeYM, cfg);
+  let dx = s.exit[0] - (end.body?.xM ?? end.portM[0]);
+  let dz = s.exit[1] - (end.body?.zM ?? end.portM[2]);
+  const d = Math.hypot(dx, dz);
+  [dx, dz] = d < EPS ? end.fallbackDir : [dx / d, dz / d];
+  const y = planeYM + cfg.liftM;
+  const plugM: Vec3 = [s.exit[0] + dx * restM, y, s.exit[1] + dz * restM];
+  return { pointsM: dedupe([...s.stub, plugM]), plugM, plugDir: [dx, dz] };
+}
+
 /** 두 포트 사이 케이블 경로. 최대 길이 안에서 경로가 없으면 null. */
 export function routeCable(a: CableEnd, b: CableEnd, planes: readonly Plane[], cfg: RouteConfig): CableRoute | null {
   const pa = planes.find((p) => p.id === a.planeId);

@@ -1,0 +1,14 @@
+{
+  "type": "table-outlet",
+  "label": "탁상 콘센트(2구)",
+  "asset": "table-outlet",
+  "fixed": true,
+  "hold": { "hands": 1, "grips": [[0, 0.05, 0]] },
+  "channels": ["Electric"],
+  "ports": [
+    { "id": "socket-1", "channel": "Electric", "direction": "out", "positionM": [-0.03, 0.025, 0.03], "socket": "mains" },
+    { "id": "socket-2", "channel": "Electric", "direction": "out", "positionM": [0.03, 0.025, 0.03], "socket": "mains" }
+  ],
+  "params": [],
+  "readouts": []
+}

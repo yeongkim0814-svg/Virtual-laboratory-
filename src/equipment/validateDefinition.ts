@@ -27,6 +27,13 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     if (!Array.isArray(p.positionM) || p.positionM.length !== 3 || !p.positionM.every(isNum)) {
       errs.push(`${at}: 포트 ${p.id} positionM 오류`);
     }
+    const kinds = ['mains', 'dc'];
+    if (p.cord !== undefined && !(p.channel === 'Electric' && p.direction === 'in' && kinds.includes(p.cord.plug))) {
+      errs.push(`${at}: 포트 ${p.id} cord 는 Electric 입력에만, plug 는 mains|dc`);
+    }
+    if (p.socket !== undefined && !(p.channel === 'Electric' && p.direction === 'out' && kinds.includes(p.socket))) {
+      errs.push(`${at}: 포트 ${p.id} socket 은 Electric 출력에만, 종류는 mains|dc`);
+    }
     if (p.channel === 'Light') {
       const dir = p.directionLocal;
       if (!Array.isArray(dir) || dir.length !== 3 || !dir.every(isNum) || Math.abs(Math.hypot(...dir) - 1) > 1e-6) {

@@ -61,7 +61,7 @@
   - `assets`: 에셋 이름 → `.glb 경로` 또는 `null`(placeholder)
   - `placeholders`: null 일 때의 외형(색, 두께) / `environment`: 배경색·조명 / `placementPreview`: 배치 미리보기 색·투명도
   - `wiring`: 케이블 색·굵기, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker`
-- `public/lab.json` — 방 크기, 가구(furniture: 테이블·찬장 위치·크기·찬장 재고), 격자(cellSizeM), 케이블(최대 길이 등), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
+- `public/lab.json` — 방 크기, 가구(furniture: 테이블·찬장 위치·크기), 고정 설비(fixtures: 테이블 콘센트), 격자(cellSizeM), 케이블(최대 길이 등), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
 - `src/assets/` — AssetRegistry(이름 → Object3D), placeholder 상자(원점=바닥 중앙)
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
 - `src/input/` — controlMath(순수 함수), touchControls(Touch Events, 멀티터치)
@@ -118,6 +118,13 @@
   꽂힌 포트를 탭하면 뽑기. 세팅 JSON(version 2)의 cables 에 저장. 들고 있는 동안 신호만 끊김(케이블은 꽂힌 채)
   케이블 = 늘어나지 않는 줄(lab.json cable.maxLengthM). 장비를 피해 가는 경로가 최대 길이보다 길면
   연결 불가 / 연결 중이면 빠짐. 용도: 전원선·센서 연결선(회로 설계용 아님)
+- 전원 코드(장비에 달린 선): Electric 입력 포트에 `cord: { plug: "mains" | "dc" }` → 장비에서 선이 나와
+  끝에 플러그(에셋 `plug`)가 달림. 안 꽂혀 있으면 lab.json cable.looseRestM 만큼 바닥면에 늘어져 있음.
+  플러그 탭 = 뽑기/꽂기 시작. 꽂는 곳 = Electric 출력 포트의 `socket` 종류가 같아야 함(plug-kind 오류)
+  현재: 테이블 콘센트(socket mains, 220 V) ← 전원 장치 mains 코드 / 전원 장치 out(socket dc) ← 레이저 dc 코드
+  전원 장치는 mains 에 전압이 있을 때만 출력(교류는 무시, 전압 크기만 전달)
+- 고정 설비(fixtures): lab.json `fixtures`(id·type·위치·회전). 정의에 `"fixed": true` 인 장비만 가능.
+  집기·회전 불가, 세팅 저장 제외(꽂힌 케이블은 저장). 세팅 cables 에서 fixture id 로 참조
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사

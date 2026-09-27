@@ -33,13 +33,22 @@
       "panelThicknessM": 0.02
     }
   ],
+  "fixtures": [
+    {
+      "id": "outlet-1",
+      "type": "table-outlet",
+      "positionM": [-2.85, 0.75, -2.9],
+      "rotationYDeg": 0
+    }
+  ],
   "grid": {
     "cellSizeM": 0.05
   },
   "cable": {
     "maxLengthM": 2.0,
     "portStubM": 0.03,
-    "clearanceM": 0.01
+    "clearanceM": 0.01,
+    "looseRestM": 0.12
   },
   "player": {
     "startPositionM": [-2.2, 0, -0.6],

@@ -1,6 +1,9 @@
 import type { Vec3 } from '../config/types';
 import type { Channel, Signal } from '../signal/channels';
 
+/** 플러그·소켓 종류: mains = 가정용 콘센트(220 V), dc = 직류 단자. 같은 종류끼리만 꽂힌다. */
+export type PlugKind = 'mains' | 'dc';
+
 export interface PortDef {
   id: string;
   channel: Channel;
@@ -16,6 +19,13 @@ export interface PortDef {
   faceSizeM?: [number, number];
   /** Light 입력만: 이 면에 닿은 빛(빛 점·간섭 무늬)과 1 mm 눈금을 그린다(스크린). */
   displaysLight?: boolean;
+  /**
+   * Electric 입력만: 장비에 붙어 있는 전원선(끝에 플러그). 뽑혀 있으면 플러그가 장비 옆에 놓이고,
+   * 같은 종류의 소켓(socket)에만 꽂힌다.
+   */
+  cord?: { plug: PlugKind };
+  /** Electric 출력만: 전원선 플러그를 꽂는 소켓(콘센트·전원 단자). 전원선만 받는다. */
+  socket?: PlugKind;
 }
 
 /** 조정 가능한 수치. 슬라이더 UI 는 이 선언에서 자동 생성된다. */
@@ -51,6 +61,8 @@ export interface EquipmentDefinition {
    * 두 손이면 두 점 중 왼쪽에 있는 점을 왼손이 잡는다.
    */
   hold: { hands: 1 | 2; grips: Vec3[] };
+  /** 고정 장비(테이블 콘센트 등): 집거나 돌릴 수 없고 세팅 저장에 들어가지 않는다(lab.json fixtures). */
+  fixed?: boolean;
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];

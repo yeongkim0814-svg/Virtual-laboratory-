@@ -8,7 +8,7 @@ import { Player } from './player/player';
 import { buildRoom } from './room/buildRoom';
 import { EquipmentManager } from './equipment/equipmentManager';
 import { loadEquipmentRegistry } from './equipment/registry';
-import { parseSetup, serializeSetup } from './equipment/setup';
+import { fixtureItems, parseSetup, serializeSetup } from './equipment/setup';
 import { SignalBus } from './signal/signalBus';
 import { cableRouter } from './signal/cables';
 import { CableView } from './signal/cableView';
@@ -34,6 +34,7 @@ async function main(): Promise<void> {
     loadPublicJson<unknown>('setups/default.json'),
   ]);
   const equipmentRegistry = loadEquipmentRegistry();
+  const fixtures = fixtureItems(lab.fixtures, equipmentRegistry.definitions);
 
   // 그림자·후처리 기본 OFF
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -64,12 +65,13 @@ async function main(): Promise<void> {
   const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
     grid: { cellSizeM: lab.grid.cellSizeM, surfaces },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
+    fixtures,
   });
   const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);
-  const cableView = new CableView(scene, cableLayout.routes, assetsFile.wiring);
+  const cableView = new CableView(scene, cableLayout.routes, cableLayout.plugs, assetsFile.wiring, () => assets.create('plug'));
   const laserView = new LaserView(scene, assetsFile.laserBeam);
   const screenOverlay = new ScreenOverlay(equipment, assetsFile.screenOverlay);
-  await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions));
+  await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions, fixtures));
 
   const camera = new THREE.PerspectiveCamera(lab.camera.fovDeg, 1, lab.camera.nearM, lab.camera.farM);
   scene.add(camera); // 손(뷰모델)이 카메라의 자식이므로 카메라도 씬에 넣는다
@@ -80,7 +82,7 @@ async function main(): Promise<void> {
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
   const interaction = new Interaction(
     camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
-    cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo),
+    cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo), cableView.plugGroup,
   );
 
   const panel = new EquipmentPanel(equipment, {
@@ -89,7 +91,7 @@ async function main(): Promise<void> {
       file
         .text()
         .then(async (text) => {
-          const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions);
+          const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions, fixtures);
           await equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
           hand.reset();
           await equipment.load(setup);

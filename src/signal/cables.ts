@@ -19,12 +19,16 @@ const sameAddress = (a: PortAddress, b: PortAddress): boolean => a.deviceId === 
 
 export type CableCheck =
   | { ok: true; cable: Cable }
-  | { ok: false; reason: 'same-device' | 'channel' | 'direction' | 'port-busy' | 'unknown-port' | 'light' };
+  | {
+      ok: false;
+      reason: 'same-device' | 'channel' | 'direction' | 'port-busy' | 'unknown-port' | 'light' | 'plug-kind' | 'needs-socket' | 'needs-plug';
+    };
 
 /**
  * 두 포트를 케이블로 이을 수 있는지. 순서는 상관없다(출력→입력으로 정리해서 돌려준다).
  * 규칙: 서로 다른 장비, 같은 채널, 하나는 out·하나는 in, 각 포트는 케이블 하나만.
  * Light 포트는 케이블로 잇지 않는다(빛은 광선 추적으로 전달).
+ * 전원선(cord)은 같은 종류의 소켓(socket)에만 꽂히고, 소켓은 전원선만 받는다.
  */
 export function checkCable(
   a: PortAddress,
@@ -39,6 +43,11 @@ export function checkCable(
   if (a.deviceId === b.deviceId) return { ok: false, reason: 'same-device' };
   if (pa.channel !== pb.channel) return { ok: false, reason: 'channel' };
   if (pa.direction === pb.direction) return { ok: false, reason: 'direction' };
+  const cord = pa.cord ?? pb.cord;
+  const socket = pa.socket ?? pb.socket;
+  if (cord && !socket) return { ok: false, reason: 'needs-socket' };
+  if (socket && !cord) return { ok: false, reason: 'needs-plug' };
+  if (cord && socket && cord.plug !== socket) return { ok: false, reason: 'plug-kind' };
   if (cables.some((c) => [c.from, c.to].some((e) => sameAddress(e, a) || sameAddress(e, b)))) {
     return { ok: false, reason: 'port-busy' };
   }

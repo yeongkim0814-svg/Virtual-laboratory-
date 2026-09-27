@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { Surfaces } from '../src/room/surfaces';
 import { EquipmentManager } from '../src/equipment/equipmentManager';
 import { loadEquipmentRegistry } from '../src/equipment/registry';
-import { parseSetup } from '../src/equipment/setup';
+import { fixtureItems, parseSetup } from '../src/equipment/setup';
 import { validateDefinition } from '../src/equipment/validateDefinition';
 import type { EquipmentDefinition } from '../src/equipment/types';
 import type { AssetsFile, LabFile } from '../src/config/types';
@@ -38,16 +38,19 @@ describe('장비 등록', () => {
     const surfaces = new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM);
     // 실제 placeholder 크기(assets.json)로 밑넓이를 계산
     const realAssets = { create: async (name: string) => createPlaceholderBox(assetsFile.placeholders[name].sizeM!, '#000000') };
+    const fixtures = fixtureItems(lab.fixtures, registry.definitions);
     const m = new EquipmentManager(new THREE.Scene(), registry, realAssets, busFor(() => []), {
-      grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0,
+      grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0, fixtures,
     });
-    const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions);
+    const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtures);
     const placed = await m.validate(setup);
-    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
+    // 첫 번째 = 테이블 콘센트(고정 장비)
+    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
   });
-  it('기본 세팅(public/setups/default.json)을 불러올 수 있다', () => {
+  it('기본 세팅(public/setups/default.json)을 불러올 수 있다(테이블 콘센트 케이블 포함)', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));
-    expect(() => parseSetup(raw, registry.definitions)).not.toThrow();
+    const lab = JSON.parse(readFileSync('public/lab.json', 'utf8')) as LabFile;
+    expect(() => parseSetup(raw, registry.definitions, fixtureItems(lab.fixtures, registry.definitions))).not.toThrow();
   });
 });
 

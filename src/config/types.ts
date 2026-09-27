@@ -102,16 +102,25 @@ export interface CupboardDef extends FurnitureBase {
   panelThicknessM: number;
 }
 
+/** 방에 고정된 장비(테이블 콘센트 등). 장비 정의에 fixed: true 인 종류만. */
+export interface FixtureDef {
+  id: string;
+  type: string;
+  positionM: Vec3;
+  rotationYDeg: number;
+}
+
 export interface LabFile {
   room: RoomSize;
   furniture: FurnitureDef[];
+  fixtures: FixtureDef[];
   /** 장비 배치 격자. 셀 중심 = (k·cellSizeM), 방 중심이 셀 (0,0) 중심. */
   grid: { cellSizeM: number };
   /**
    * 케이블(전원선·연결선). 늘어나지 않는 줄: 장비를 피해 가는 경로가 maxLengthM 보다 길면
    * 연결할 수 없고, 연결 중이면 빠진다.
    */
-  cable: { maxLengthM: number; portStubM: number; clearanceM: number };
+  cable: { maxLengthM: number; portStubM: number; clearanceM: number; looseRestM: number };
   player: {
     startPositionM: Vec3;
     startYawDeg: number;
