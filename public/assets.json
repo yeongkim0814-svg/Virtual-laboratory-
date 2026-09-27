@@ -113,7 +113,8 @@
     "cableColor": "#222222",
     "cableRadiusM": 0.006,
     "portHitRadiusM": 0.07,
-    "selectedPortScale": 1.8
+    "selectedPortScale": 1.8,
+    "mountOnlyHitRadiusM": 0.03
   },
   "rotateGizmo": {
     "color": "#ffb300",

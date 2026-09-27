@@ -13,6 +13,7 @@ import type { OrientedBox } from '../physics/optics';
 import type { EquipmentRegistry } from './registry';
 import type { SetupFile, SetupItem } from './setup';
 import type { Behavior, EquipmentDefinition, PortDef } from './types';
+import type { Vec3 } from '../config/types';
 
 const DEG = Math.PI / 180;
 
@@ -48,6 +49,8 @@ export interface ManagerOptions {
   fixtures?: readonly SetupItem[];
   /** 포트 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
   portHitRadiusM: number;
+  /** mountOnly 장비(슬릿·LED 등) 몸통 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
+  mountOnlyHitRadiusM: number;
 }
 
 /** -180 < deg ≤ 180 로 정규화, 소수 둘째 자리까지. */
@@ -78,6 +81,13 @@ export function mountAddressOf(obj: THREE.Object3D | null): MountAddress | undef
     if (o.userData.equipmentId !== undefined) return undefined;
   }
   return undefined;
+}
+
+/** mounts 자리의 로컬 좌표: heightParam 이 있으면 그 장비의 현재 param 값을 y 로 쓴다(없으면 정의값 그대로). */
+function mountLocalM(mountDef: NonNullable<EquipmentDefinition['mounts']>[number], hostParams: Record<string, number>): Vec3 {
+  if (!mountDef.heightParam) return mountDef.positionM;
+  const y = hostParams[mountDef.heightParam] ?? mountDef.positionM[1];
+  return [mountDef.positionM[0], y, mountDef.positionM[2]];
 }
 
 /**
@@ -172,7 +182,8 @@ export class EquipmentManager {
       if (!host) throw new Error(`세팅: ${item.id} 이(가) 끼워질 ${item.mountedOn.deviceId} 를 찾을 수 없음`);
       const mountDef = host.def.mounts?.find((m) => m.id === item.mountedOn!.mountId);
       if (!mountDef) throw new Error(`세팅: ${item.id} 의 mountedOn.mountId ${item.mountedOn.mountId} 가 ${host.def.type} 에 없음`);
-      const worldPos = localToWorld(mountDef.positionM, host.item.positionM, host.item.rotationYDeg * DEG);
+      const mountLocal = mountLocalM(mountDef, host.item.params);
+      const worldPos = localToWorld(mountLocal, host.item.positionM, host.item.rotationYDeg * DEG);
       resolved.set(item.id, {
         item: { ...item, positionM: worldPos, rotationYDeg: normalizeDeg(item.rotationYDeg) },
         def,
@@ -298,6 +309,7 @@ export class EquipmentManager {
   }
 
   update(dtS: number): void {
+    this.syncMounts();
     const ports = this.worldPorts();
     const inputsByPort = this.bus.route(this.pending, ports.filter((p) => p.direction === 'in'));
     const next: Emission[] = [];
@@ -356,7 +368,15 @@ export class EquipmentManager {
     object.rotation.y = item.rotationYDeg * DEG;
     object.userData.equipmentId = item.id;
     const portMarkers = await this.addPortMarkers(object, item.id, def);
-    const mountMarkers = this.addMountMarkers(object, item.id, def);
+    const mountMarkers = this.addMountMarkers(object, item.id, def, item.params);
+    if (def.mountOnly && this.options.mountOnlyHitRadiusM > 0) {
+      // 클램프에 끼운 작은 장비(슬릿 등)는 내려다보면 얇은 면이 거의 안 보여 탭하기 어려움 →
+      // 보이지 않는 큰 구로 몸통 전체를 감싸 어느 각도에서도 탭이 걸리게 한다.
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.mountOnlyHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
+      hit.visible = false;
+      hit.position.set(0, heightM / 2, 0);
+      object.add(hit);
+    }
     this.group.add(object);
     const readouts: Record<string, number | null> = {};
     for (const r of def.readouts) readouts[r.key] = null;
@@ -427,21 +447,49 @@ export class EquipmentManager {
   }
 
   /** mounts 자리마다 탭 판정용 보이지 않는 구를 단다(들고 있는 mountOnly 장비를 여기 끼운다). */
-  private addMountMarkers(object: THREE.Object3D, deviceId: string, def: EquipmentDefinition): Map<string, THREE.Object3D> {
+  private addMountMarkers(
+    object: THREE.Object3D, deviceId: string, def: EquipmentDefinition, params: Record<string, number>,
+  ): Map<string, THREE.Object3D> {
     const markers = new Map<string, THREE.Object3D>();
     for (const m of def.mounts ?? []) {
       const holder = new THREE.Group();
-      holder.position.set(...m.positionM);
+      holder.position.set(...mountLocalM(m, params));
       holder.userData.mount = { deviceId, mountId: m.id } satisfies MountAddress;
       if (this.options.portHitRadiusM > 0) {
         const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.portHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
         hit.visible = false;
+        hit.userData.mountHit = true; // 자리가 차면 꺼서(끼운 장비 몸체 탭이 이 큰 구에 가리지 않게)
         holder.add(hit);
       }
       object.add(holder);
       markers.set(m.id, holder);
     }
     return markers;
+  }
+
+  /**
+   * mounts 자리를 가진 장비(클램프)를 매 프레임 정리한다:
+   * - heightParam 이 있으면 현재 param 값으로 자리 표시·모델 세로 비율을 갱신
+   *   (수치 조정 창에서 높이를 바꾸면 바로 보이도록). mounts 는 장비 하나에 하나만 있다고 본다
+   *   (둘 이상이면 마지막 것 기준으로 모델이 늘어남).
+   * - 자리가 찼으면 그 자리의 탭 판정 구를 끈다. 빈 자리를 겨눌 때 쓰는 큰 구(portHitRadiusM)가
+   *   자리가 차 있는 동안에도 남아 있으면, 끼운 장비 자신의(훨씬 작은) 탭 판정을 가려 버려
+   *   빼고 다시 끼우기가 사실상 안 됨 — 자리가 비었을 때만 켠다.
+   */
+  private syncMounts(): void {
+    for (const inst of this.instances) {
+      for (const m of inst.def.mounts ?? []) {
+        const holder = inst.mountMarkers.get(m.id);
+        if (m.heightParam) {
+          const y = inst.params[m.heightParam] ?? m.positionM[1];
+          holder?.position.setY(y);
+          if (m.positionM[1] > 0) inst.object.scale.setY(y / m.positionM[1]);
+        }
+        const occupied = this.isMountSlotOccupied(inst.id, m.id);
+        const hit = holder?.children.find((c) => c.userData.mountHit);
+        hit?.scale.setScalar(occupied ? 0 : 1);
+      }
+    }
   }
 
   /** 놓여 있는 장비의 포트(월드 좌표). 들린 장비는 신호가 끊기므로 제외. */

@@ -53,6 +53,11 @@ export interface WiringStyle {
   portHitRadiusM: number;
   /** 케이블을 이을 포트를 골랐을 때 포트 표시 확대 배율. */
   selectedPortScale: number;
+  /**
+   * mountOnly 장비(클램프에 끼우는 슬릿·LED 등) 몸통 탭 판정 반경(보이지 않음).
+   * 얇은 면이 위에서 보면 거의 안 보이는 각도에서도 탭이 걸리도록 실제 모델보다 넉넉하게.
+   */
+  mountOnlyHitRadiusM: number;
 }
 
 /** 배치 미리보기(반투명 장비 + 밑넓이 셀) 외형. */

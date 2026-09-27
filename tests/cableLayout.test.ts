@@ -27,7 +27,7 @@ async function make(equipment: object[]) {
   const scene = new THREE.Scene();
   const m: EquipmentManager = new EquipmentManager(scene, registry, assets, new SignalBus(cableRouter(() => m.cables)), {
     grid: { cellSizeM: 0.05, surfaces: new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05) },
-    portHitRadiusM: 0,
+    portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
   });
   await m.load(parseSetup({
     version: 2,

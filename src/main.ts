@@ -68,6 +68,7 @@ async function main(): Promise<void> {
   const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
     grid: { cellSizeM: lab.grid.cellSizeM, surfaces },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
+    mountOnlyHitRadiusM: assetsFile.wiring.mountOnlyHitRadiusM,
     fixtures,
   });
   const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);

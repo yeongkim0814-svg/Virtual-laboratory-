@@ -69,7 +69,7 @@ describe('parseSetup: mountedOn 검증', () => {
 describe('EquipmentManager: 클램프에 끼운 장비', () => {
   async function make() {
     let m!: EquipmentManager;
-    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07 });
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07, mountOnlyHitRadiusM: 0.07 });
     await m.load(parseSetup(setupWith([
       { id: 'c', type: 'clamp', positionM: [0.5, 0, 0.5] },
       { id: 's', type: 'double-slit', positionM: [0, 0, 0], mountedOn: { deviceId: 'c', mountId: 'slot' } },

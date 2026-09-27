@@ -5,7 +5,9 @@
   "hold": { "hands": 1, "grips": [[0, 0.05, 0]] },
   "channels": [],
   "ports": [],
-  "params": [],
+  "params": [
+    { "key": "heightM", "label": "높이", "unit": "m", "min": 0.04, "max": 0.18, "step": 0.01, "default": 0.08 }
+  ],
   "readouts": [],
-  "mounts": [{ "id": "slot", "positionM": [0, 0.08, 0] }]
+  "mounts": [{ "id": "slot", "positionM": [0, 0.08, 0], "heightParam": "heightM" }]
 }

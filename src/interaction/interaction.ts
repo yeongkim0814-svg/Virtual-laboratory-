@@ -107,12 +107,12 @@ export class Interaction {
     return true;
   }
 
-  /** 가로 드래그(px)만큼 회전. 오른쪽으로 밀면 위에서 보아 시계 방향(= yaw 감소). */
+  /** 가로 드래그(px)만큼 회전. 오른쪽으로 밀면 장비 앞쪽(레이저 빔 등)이 오른쪽으로 돈다(= yaw 증가). */
   rotateBy(dxPx: number): void {
     const r = this.rotating;
     if (!r || dxPx === 0) return;
     const c = this.cfg.controls;
-    r.rawDeg -= dxPx * c.rotateDegPerPx;
+    r.rawDeg += dxPx * c.rotateDegPerPx;
     const deg = snapAngleDeg(r.rawDeg, c.rotateSnapStepDeg, c.rotateSnapWindowDeg);
     if (deg !== r.inst.rotationYDeg) {
       this.manager.setRotation(r.inst.id, deg);

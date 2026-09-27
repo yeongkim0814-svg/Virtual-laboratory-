@@ -40,7 +40,7 @@ describe('장비 등록', () => {
     const realAssets = { create: async (name: string) => createPlaceholderBox(assetsFile.placeholders[name].sizeM!, '#000000') };
     const fixtures = fixtureItems(lab.fixtures, registry.definitions);
     const m = new EquipmentManager(new THREE.Scene(), registry, realAssets, busFor(() => []), {
-      grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0, fixtures,
+      grid: { cellSizeM: lab.grid.cellSizeM, surfaces }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0, fixtures,
     });
     const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtures);
     const placed = await m.validate(setup);
@@ -115,7 +115,7 @@ describe('validateDefinition', () => {
 
 describe('장비 간 신호 전달·배치 (케이블, 격자)', () => {
   // 테스트 장비 모델 = 0.3×0.2×0.2 상자 → 내접 원 반지름 0.18028 m → 61셀(가로 ±4셀)
-  const opts = { grid: GRID, portHitRadiusM: 0.07 };
+  const opts = { grid: GRID, portHitRadiusM: 0.07, mountOnlyHitRadiusM: 0.07 };
   const make = async (cabled = true) => {
     const m = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), opts);
     await m.load(parseSetup({
@@ -240,7 +240,7 @@ describe('테이블·찬장 선반 배치', () => {
   const surfaces = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [table], 0.05);
   const newM = () => {
     const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
-      grid: { cellSizeM: 0.05, surfaces }, portHitRadiusM: 0,
+      grid: { cellSizeM: 0.05, surfaces }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
     });
     return m;
   };
@@ -265,7 +265,7 @@ describe('테이블·찬장 선반 배치', () => {
   it('찬장 선반(칸 4개, 높이 0.02·0.465·0.91·1.355)에 놓인다: 면 = 찬장/칸 번호', async () => {
     const surf = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [shelf(4)], 0.05);
     const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
-      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0,
+      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
     });
     await m.load(at(0, 0.91, -4.75));
     expect(m.get('a')!.surfaceId).toBe('c/3');
@@ -273,7 +273,7 @@ describe('테이블·찬장 선반 배치', () => {
   it('선반 사이 빈 높이보다 큰 장비는 못 놓는다: 칸 10개 → (1.8 − 0.02)/10 − 0.02 = 0.158 < 장비 0.2', async () => {
     const surf = new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [shelf(10)], 0.05);
     const m: EquipmentManager = new EquipmentManager(new THREE.Scene(), registry, boxAssets, busFor(() => m.cables), {
-      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0,
+      grid: { cellSizeM: 0.05, surfaces: surf }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
     });
     await expect(m.validate(at(0, 0.02, -4.75))).rejects.toThrow('선반 사이 높이');
   });

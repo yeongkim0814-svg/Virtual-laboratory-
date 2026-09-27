@@ -162,6 +162,17 @@
     놓이는 장비 → 끼워진 장비 순)
   - 클램프 자신은 물리에 안 들어감(bodyBoxes 의 빛 차단, cableLayout 의 케이블 장애물 모두 제외) — 받침일
     뿐이라고 봄. 안 그러면 끼운 장비(클램프와 같은 xz)로 가는 빛·케이블이 클램프 몸체에 막혀 버림
+  - 높이 조정: `mounts[i].heightParam`(예: 클램프의 `"heightParam": "heightM"`)이 있으면 mounts.positionM[1]
+    대신 그 장비의 해당 param(슬라이더, 장비를 놓고 두 번 탭으로 조정) 값을 자리 높이로 씀 — validate()
+    2단계·mountCandidate 둘 다 `mountLocalM()` 한 곳에서 계산. `EquipmentManager.syncMounts()`(매 프레임)가
+    현재 param 값으로 mounts 탭 판정 자리·모델 세로 비율(object.scale.y = 현재높이/정의높이)을 갱신 —
+    수치 조정 창에서 높이를 바꾸면 바로 보임. 이미 끼운 장비의 세계 좌표는 끼운 순간 값으로 고정(호스트
+    높이를 나중에 바꿔도 따라오지 않음 — 다시 빼서 끼우면 새 높이 반영)
+  - mounts 자리의 탭 판정 구(`portHitRadiusM`, 비었을 때 겨눠서 끼우는 데 씀)는 자리가 찼으면
+    `syncMounts()` 가 scale 을 0 으로 꺼서 탭이 안 걸리게 함 — 안 그러면 이 구가 끼운 장비 자신의(더 작은)
+    몸체 탭 판정을 가려 버려 빼고 다시 끼우기가 거의 안 됨(이중 슬릿을 레이저 지름만큼 줄인 뒤 실제로
+    발견된 문제 — 위에서 내려다보면 얇은 판이 거의 안 보이는 각도이기도 해서, mountOnly 장비 몸체에는
+    별도로 더 큰 탭 판정 구(`mountOnlyHitRadiusM`, assets.json)를 항상 달아 둠)
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사
   (원점 = 바닥 중앙, 8,000 삼각형 이하, 빛 출구 = 모델 앞 끝). 물리(빛 차단 상자·격자 발판)는 모델의 실제
