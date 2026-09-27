@@ -85,9 +85,27 @@ export class EquipmentPanel {
     }
     const rows: HTMLElement[] = [];
 
-    // params → 슬라이더 자동 생성(슬라이더는 표시 단위, 값은 SI 로 저장)
+    // params → UI 자동 생성: options 가 있으면 스위치(버튼 묶음), 없으면 슬라이더(표시 단위, 값은 SI 로 저장)
     for (const p of inst.def.params) {
       const row = div('row');
+      if (p.options) {
+        const buttons = div('switch');
+        const mark = (): void => {
+          buttons.querySelectorAll('button').forEach((b, i) => b.classList.toggle('selected', p.options[i].value === inst.params[p.key]));
+        };
+        for (const o of p.options) {
+          const b = button(o.label);
+          b.addEventListener('click', () => {
+            inst.params[p.key] = o.value;
+            mark();
+          });
+          buttons.append(b);
+        }
+        mark();
+        row.append(p.label, buttons);
+        rows.push(row);
+        continue;
+      }
       const label = document.createElement('label');
       const value = document.createElement('span');
       const scale = p.displayScale ?? 1;

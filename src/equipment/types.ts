@@ -28,18 +28,30 @@ export interface PortDef {
   socket?: PlugKind;
 }
 
-/** 조정 가능한 수치. 슬라이더 UI 는 이 선언에서 자동 생성된다. */
-export interface ParamDef {
+interface ParamBase {
   key: string;
   label: string;
   unit: string;
-  min: number;
-  max: number;
-  step: number;
   default: number;
   /** 화면 표시 배율(값은 SI 로 저장, 표시는 값 × 배율 + unit). 예: 파장 m → nm 이면 1e9. 기본 1. */
   displayScale?: number;
 }
+
+/** 연속 수치 → 슬라이더. */
+export interface SliderParamDef extends ParamBase {
+  min: number;
+  max: number;
+  step: number;
+  options?: undefined;
+}
+
+/** 정해진 값 중 하나(스위치) → 버튼 묶음. 값은 숫자(SI)로 저장되어 세팅 JSON 에 그대로 들어간다. */
+export interface ChoiceParamDef extends ParamBase {
+  options: { value: number; label: string }[];
+}
+
+/** 조정 가능한 수치. UI(슬라이더 / 스위치 버튼)는 이 선언에서 자동 생성된다. */
+export type ParamDef = SliderParamDef | ChoiceParamDef;
 
 /** 장비가 표시하는 읽기 전용 값(측정값 등). */
 export interface ReadoutDef {

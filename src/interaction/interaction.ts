@@ -213,12 +213,17 @@ export class Interaction {
     this.notify('케이블을 이었어요');
   }
 
-  /** 고른 포트 표시를 키우고, 이전 것은 되돌린다. */
+  /** 고른 포트에만 표시를 (키워서) 보이고, 이전 것은 숨긴다. 평소 포트 표시는 숨김. */
   private selectPort(port: PortAddress | null): void {
-    const marker = (p: PortAddress | null) => (p ? this.manager.get(p.deviceId)?.portMarkers.get(p.portId) : undefined);
-    marker(this.selectedPort)?.scale.setScalar(1);
+    const holder = (p: PortAddress | null) => (p ? this.manager.get(p.deviceId)?.portMarkers.get(p.portId) : undefined);
+    const show = (h: THREE.Object3D | undefined, on: boolean): void => {
+      if (!h) return;
+      h.scale.setScalar(on ? this.selectedPortScale : 1);
+      if (h.userData.marker) (h.userData.marker as THREE.Object3D).visible = on;
+    };
+    show(holder(this.selectedPort), false);
     this.selectedPort = port;
-    marker(port)?.scale.setScalar(this.selectedPortScale);
+    show(holder(port), true);
   }
 
   private ndc(p: Vec2): THREE.Vector2 {

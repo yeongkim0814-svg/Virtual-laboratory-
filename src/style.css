@@ -85,6 +85,8 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
 .panel-actions, .panel-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .panel-detail .row { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
 .panel-detail input[type='range'] { width: 100%; min-height: 44px; }
+.panel-detail .switch { display: flex; gap: 4px; }
+.panel-detail .switch button { flex: 1; min-height: 44px; }
 
 /* ── 안내 메시지 ── */
 .toast {

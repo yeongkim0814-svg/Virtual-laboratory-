@@ -114,13 +114,13 @@ function boxEntryT(o: Vec3, d: Vec3, b: OrientedBox): number | null {
 }
 
 /**
- * R2 레이저 켜짐(단순 모델): 입력 전압 ≥ 정격 전압이면 켜짐, 아니면(입력 없음 포함) 꺼짐.
- * 출처: 레이저 다이오드는 문턱 전류 이상에서 발진하고, 그 위에서 출력이 전류에 거의 비례.
- * 가정: 문턱 이상이면 설정 출력 그대로(켬/끔만), 과전압 손상 없음.
- * 유효범위: 켜짐 여부만 다루는 교육용 수준. 출력-전류 곡선은 다루지 않는다.
+ * R2′ 레이저 켜짐: 콘센트에 꽂혀 전압이 들어오고(> 0) 파장 스위치가 OFF(0)가 아니면 켜짐.
+ * 출처: 실험용 레이저 모듈은 어댑터 내장형으로 콘센트에 직접 꽂고, 스위치로 켜고 끈다.
+ * 가정: 켜지면 설정 출력 그대로(켬/끔만), 전압 크기·교류는 무시. 스위치 값 = 파장(m), OFF = 0.
+ * 유효범위: 켜짐 여부만 다루는 교육용 수준. 출력-전류 곡선·예열은 다루지 않는다.
  */
-export function laserOn(inputVoltageV: number | null, ratedVoltageV: number): boolean {
-  return inputVoltageV !== null && inputVoltageV >= ratedVoltageV;
+export function laserOn(mainsVoltageV: number | null, switchWavelengthM: number): boolean {
+  return mainsVoltageV !== null && mainsVoltageV > 0 && switchWavelengthM > 0;
 }
 
 /**

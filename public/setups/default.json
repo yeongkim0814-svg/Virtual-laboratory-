@@ -11,6 +11,6 @@
   ],
   "cables": [
     { "from": { "deviceId": "outlet-1", "portId": "socket-1" }, "to": { "deviceId": "power-1", "portId": "mains" } },
-    { "from": { "deviceId": "power-1", "portId": "out" }, "to": { "deviceId": "laser-1", "portId": "power" } }
+    { "from": { "deviceId": "outlet-1", "portId": "socket-2" }, "to": { "deviceId": "laser-1", "portId": "power" } }
   ]
 }

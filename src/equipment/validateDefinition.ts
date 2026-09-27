@@ -50,10 +50,15 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
   for (const p of d.params ?? []) {
     if (keys.has(p.key)) errs.push(`${at}: param 키 중복 ${p.key}`);
     keys.add(p.key);
-    if (![p.min, p.max, p.step, p.default].every(isNum)) errs.push(`${at}: param ${p.key} 숫자 오류`);
-    else if (p.displayScale !== undefined && !(isNum(p.displayScale) && p.displayScale > 0)) {
+    if (p.displayScale !== undefined && !(isNum(p.displayScale) && p.displayScale > 0)) {
       errs.push(`${at}: param ${p.key} displayScale 는 양수`);
-    } else if (!(p.min <= p.default && p.default <= p.max && p.step > 0)) {
+    } else if (p.options !== undefined) {
+      const values = Array.isArray(p.options) ? p.options.map((o) => o?.value) : [];
+      if (values.length < 2 || !values.every(isNum) || new Set(values).size !== values.length) {
+        errs.push(`${at}: param ${p.key} options 는 서로 다른 숫자 값 2개 이상`);
+      } else if (!values.includes(p.default)) errs.push(`${at}: param ${p.key} default 는 options 값 중 하나`);
+    } else if (![p.min, p.max, p.step, p.default].every(isNum)) errs.push(`${at}: param ${p.key} 숫자 오류`);
+    else if (!(p.min <= p.default && p.default <= p.max && p.step > 0)) {
       errs.push(`${at}: param ${p.key} 범위 오류 (min ≤ default ≤ max, step > 0)`);
     }
   }

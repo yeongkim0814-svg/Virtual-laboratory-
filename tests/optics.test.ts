@@ -42,12 +42,12 @@ describe('R1 직진: p(t) = o + t·d, 면과 만나는 t = (p₀ − o)·n / (d�
   });
 });
 
-describe('R2 레이저 켜짐: 입력 전압 ≥ 정격 5 V', () => {
-  it('4.9 V 꺼짐, 5.0 V 켜짐, 12 V 켜짐, 입력 없음(null) 꺼짐', () => {
-    expect(laserOn(4.9, 5)).toBe(false);
-    expect(laserOn(5.0, 5)).toBe(true);
-    expect(laserOn(12, 5)).toBe(true);
-    expect(laserOn(null, 5)).toBe(false);
+describe("R2′ 레이저 켜짐: 콘센트에 꽂힘(전압 > 0) 이고 스위치 ≠ OFF", () => {
+  it('꽂힘 + 빨강/초록 켜짐, 꽂힘 + OFF 꺼짐, 안 꽂힘 꺼짐', () => {
+    expect(laserOn(220, 650e-9)).toBe(true);
+    expect(laserOn(220, 532e-9)).toBe(true);
+    expect(laserOn(220, 0)).toBe(false);
+    expect(laserOn(null, 650e-9)).toBe(false);
   });
 });
 

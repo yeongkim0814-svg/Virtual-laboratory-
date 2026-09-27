@@ -9,9 +9,11 @@
     { "id": "out", "channel": "Electric", "direction": "out", "positionM": [0.1, 0.06, 0.03], "socket": "dc" }
   ],
   "params": [
-    { "key": "voltageV", "label": "출력 전압", "unit": "V", "min": 0, "max": 12, "step": 0.1, "default": 5 }
+    { "key": "voltageV", "label": "설정 전압", "unit": "V", "min": 0, "max": 30, "step": 0.1, "default": 5 },
+    { "key": "currentLimitA", "label": "전류 한계", "unit": "A", "min": 0, "max": 3, "step": 0.01, "default": 1 }
   ],
   "readouts": [
-    { "key": "outputV", "label": "출력", "unit": "V" }
+    { "key": "outputV", "label": "출력 전압", "unit": "V" },
+    { "key": "outputA", "label": "출력 전류", "unit": "A" }
   ]
 }

@@ -66,6 +66,14 @@ describe('validateDefinition', () => {
     const bad = { ...good, ports: [{ ...good.ports[0], channel: 'Thermal' as const }] };
     expect(validateDefinition(bad).join()).toContain('channels 에 없음');
   });
+  it('스위치(options): 정상 / 값 1개 / 중복 값 / default 가 options 에 없음', () => {
+    const sw = (options: { value: number; label: string }[], d: number) => ({ ...good, params: [{ key: 's', label: 's', unit: '', default: d, options }] });
+    const two = [{ value: 0, label: 'OFF' }, { value: 1, label: 'ON' }];
+    expect(validateDefinition(sw(two, 1))).toEqual([]);
+    expect(validateDefinition(sw([two[0]], 0)).join()).toContain('2개 이상');
+    expect(validateDefinition(sw([two[0], two[0]], 0)).join()).toContain('2개 이상');
+    expect(validateDefinition(sw(two, 5)).join()).toContain('options 값 중 하나');
+  });
   it('default 가 범위 밖이면 오류', () => {
     const bad = { ...good, params: [{ ...good.params[0], default: 2 }] };
     expect(validateDefinition(bad).join()).toContain('범위 오류');

@@ -13,9 +13,12 @@ const def: EquipmentDefinition = {
   params: [{ key: 'voltageV', label: 'V', unit: 'V', min: 0, max: 12, step: 0.1, default: 5 }],
   readouts: [],
 };
+const sw: EquipmentDefinition = {
+  ...def, type: 'sw', params: [{ key: 'mode', label: '스위치', unit: '', default: 1, options: [{ value: 0, label: 'OFF' }, { value: 1, label: 'A' }, { value: 2, label: 'B' }] }],
+};
 const src: EquipmentDefinition = { ...def, type: 'src', params: [], ports: [{ id: 'out', channel: 'Electric', direction: 'out', positionM: [0, 0, 0] }] };
 const dst: EquipmentDefinition = { ...def, type: 'dst', params: [], ports: [{ id: 'in', channel: 'Electric', direction: 'in', positionM: [0, 0, 0] }] };
-const defs = new Map([[def.type, def], [src.type, src], [dst.type, dst]]);
+const defs = new Map([[def.type, def], [sw.type, sw], [src.type, src], [dst.type, dst]]);
 const wired = (cables: unknown) => ({
   version: 2,
   equipment: [
@@ -40,6 +43,13 @@ describe('parseSetup', () => {
   it('범위 밖 param → [0, 12] 로 자름', () => {
     expect(parseSetup({ version: 1, equipment: [item({ params: { voltageV: 99 } })] }, defs).equipment[0].params.voltageV).toBe(12);
     expect(parseSetup({ version: 1, equipment: [item({ params: { voltageV: -1 } })] }, defs).equipment[0].params.voltageV).toBe(0);
+  });
+  it('스위치 param: options 값이면 그대로, 없는 값 → default(1), 빠지면 default', () => {
+    const mode = (params: object) => parseSetup({ version: 1, equipment: [item({ type: 'sw', params })] }, defs).equipment[0].params.mode;
+    expect(mode({ mode: 2 })).toBe(2);
+    expect(mode({ mode: 0 })).toBe(0);
+    expect(mode({ mode: 1.5 })).toBe(1);
+    expect(mode({})).toBe(1);
   });
   it('오류: 알 수 없는 종류 / 중복 id / 없는 param / 잘못된 좌표 / version', () => {
     expect(() => parseSetup({ version: 1, equipment: [item({ type: 'nope' })] }, defs)).toThrow('알 수 없는 장비');

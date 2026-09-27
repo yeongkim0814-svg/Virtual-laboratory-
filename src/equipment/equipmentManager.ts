@@ -317,7 +317,10 @@ export class EquipmentManager {
     return f;
   }
 
-  /** 포트마다 표시(assets.json "port-marker")와 탭 판정용 보이지 않는 구를 단다. */
+  /**
+   * 포트마다 탭 판정용 보이지 않는 구와 표시(assets.json "port-marker")를 단다.
+   * 표시는 평소 숨김 — 포트를 골랐을 때만 보인다(holder.userData.marker, Interaction.selectPort).
+   */
   private async addPortMarkers(object: THREE.Object3D, deviceId: string, def: EquipmentDefinition): Promise<Map<string, THREE.Object3D>> {
     const markers = new Map<string, THREE.Object3D>();
     for (const p of def.ports) {
@@ -328,6 +331,8 @@ export class EquipmentManager {
       const marker = await this.assets.create('port-marker');
       const box = new THREE.Box3().setFromObject(marker);
       if (!box.isEmpty()) marker.position.y = -(box.min.y + box.max.y) / 2; // 모델 원점(바닥 중앙) → 중심 정렬
+      marker.visible = false;
+      holder.userData.marker = marker;
       holder.add(marker);
       if (this.options.portHitRadiusM > 0) {
         const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.portHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());

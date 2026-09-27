@@ -1,4 +1,5 @@
-// 레이저 1단계 통합: 전원 장치 → (케이블) → 레이저 → (빛, R1) → 스크린. R2·R3 확인. 기대값은 승인 규칙에서.
+// 레이저 통합: 콘센트 → (전원선) → 레이저(스위치) → (빛, R1) → 스크린. R2′·R3 확인 + 직류 전원 장치(R9) 콘센트 연결. 기대값은 승인 규칙에서.
+// (이전: 전원 장치 → (케이블) → 레이저 → (빛, R1) → 스크린. R2·R3 확인. 기대값은 승인 규칙에서.
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
@@ -20,9 +21,11 @@ const room = { widthM: 10, depthM: 10, heightM: 3 };
 // 모든 배치에 바닥 콘센트(고정 장비)를 두고 전원 장치를 꽂는다(전원 장치는 콘센트에 꽂혀야 출력)
 const outlet = fixtureItems([{ id: 'wall', type: 'table-outlet', positionM: [-0.6, 0, 0.5], rotationYDeg: 180 }], registry.definitions);
 const mainsCable = { from: { deviceId: 'wall', portId: 'socket-1' }, to: { deviceId: 'ps', portId: 'mains' } };
+const laserCable = { from: { deviceId: 'wall', portId: 'socket-2' }, to: { deviceId: 'laser', portId: 'power' } };
 
-async function make(opts: { voltageV?: number; cable?: boolean; mains?: boolean; blocker?: boolean; screenYawDeg?: number } = {}) {
-  const { voltageV = 5, cable = true, mains = true, blocker = false, screenYawDeg = 180 } = opts;
+async function make(opts: { cable?: boolean; mains?: boolean; blocker?: boolean; screenYawDeg?: number } = {}) {
+  // cable = 레이저 전원선이 콘센트에 꽂힘, mains = 전원 장치 전원선이 콘센트에 꽂힘
+  const { cable = true, mains = true, blocker = false, screenYawDeg = 180 } = opts;
   let m!: EquipmentManager;
   const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
   m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
@@ -32,12 +35,12 @@ async function make(opts: { voltageV?: number; cable?: boolean; mains?: boolean;
   await m.load(parseSetup({
     version: 2,
     equipment: [
-      { id: 'ps', type: 'power-supply', positionM: [-0.6, 0, 0], params: { voltageV } },
+      { id: 'ps', type: 'power-supply', positionM: [-0.6, 0, 0], params: { voltageV: 12, currentLimitA: 1 } },
       { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
       { id: 'screen', type: 'screen', positionM: [0, 0, 1], rotationYDeg: screenYawDeg },
       ...(blocker ? [{ id: 'block', type: 'test-probe', positionM: [0, 0, 0.5] }] : []),
     ],
-    cables: [...(mains ? [mainsCable] : []), ...(cable ? [{ from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }] : [])],
+    cables: [...(mains ? [mainsCable] : []), ...(cable ? [laserCable] : [])],
   }, registry.definitions, outlet));
   const run = (n = 4) => {
     for (let i = 0; i < n; i++) {
@@ -49,7 +52,7 @@ async function make(opts: { voltageV?: number; cable?: boolean; mains?: boolean;
 }
 
 describe('레이저 → 스크린', () => {
-  it('R3: 5 V 이면 켜지고, 스크린이 받은 세기 = 레이저 출력(1 mW), 파장 650 nm', async () => {
+  it('R3: 콘센트에 꽂히고 스위치 빨강이면 켜지고, 스크린이 받은 세기 = 레이저 출력(1 mW), 파장 650 nm', async () => {
     const { run, screen, laser, light } = await make();
     run();
     expect(laser.readouts.emittedPowerW).toBeCloseTo(0.001, 9);
@@ -60,7 +63,7 @@ describe('레이저 → 스크린', () => {
     expect(light.beams[0].trace.hit.kind).toBe('face');
     expect(light.beams[0].trace.tM).toBeCloseTo(0.89, 6);
   });
-  it('출력·파장 슬라이더를 바꾸면 스크린 값도 바뀐다(3 mW, 532 nm)', async () => {
+  it('출력 슬라이더·스위치(초록)를 바꾸면 스크린 값도 바뀐다(3 mW, 532 nm)', async () => {
     const { run, screen, laser } = await make();
     laser.params.powerW = 0.003;
     laser.params.wavelengthM = 532e-9;
@@ -68,31 +71,40 @@ describe('레이저 → 스크린', () => {
     expect(screen.readouts.receivedPowerW).toBeCloseTo(0.003, 9);
     expect(screen.readouts.wavelengthM).toBeCloseTo(532e-9, 15);
   });
-  it('R2: 4.9 V 면 꺼짐 → 빛 없음, 스크린 0', async () => {
-    const { run, screen, laser, light } = await make({ voltageV: 4.9 });
+  it("R2′: 꽂혀 있어도 스위치 OFF 면 꺼짐 → 빛 없음, 스크린 0", async () => {
+    const { run, screen, laser, light } = await make();
+    laser.params.wavelengthM = 0;
     run();
     expect(laser.readouts.emittedPowerW).toBe(0);
     expect(light.beams).toHaveLength(0);
     expect(screen.readouts.receivedPowerW).toBe(0);
     expect(screen.readouts.wavelengthM).toBeNull();
   });
-  it('전원 장치가 콘센트에 안 꽂혀 있으면 출력 없음 → 레이저 꺼짐', async () => {
-    const { run, screen, laser, m } = await make({ mains: false });
+  it("R2′: 레이저가 콘센트에 안 꽂혀 있으면(스위치 빨강) 꺼짐", async () => {
+    const { run, screen, laser } = await make({ cable: false });
     run();
-    expect(m.get('ps')!.readouts.outputV).toBeNull();
     expect(laser.readouts.emittedPowerW).toBe(0);
     expect(screen.readouts.receivedPowerW).toBe(0);
+  });
+  it('R9: 직류 전원 장치는 콘센트에 꽂혀야 출력 — 부하 없음 → 12 V, 0 A / 안 꽂힘 → 표시 없음', async () => {
+    const on = await make();
+    on.run();
+    expect(on.m.get('ps')!.readouts.outputV).toBe(12);
+    expect(on.m.get('ps')!.readouts.outputA).toBe(0);
+    const off = await make({ mains: false });
+    off.run();
+    expect(off.m.get('ps')!.readouts.outputV).toBeNull();
+    expect(off.m.get('ps')!.readouts.outputA).toBeNull();
+  });
+  it('레이저 플러그(mains)는 직류 단자(dc)에 꽂히지 않는다', async () => {
+    const { m } = await make({ cable: false });
+    expect(m.connect({ deviceId: 'ps', portId: 'out' }, { deviceId: 'laser', portId: 'power' })).toEqual({ ok: false, reason: 'plug-kind' });
   });
   it('콘센트(고정 장비)는 세팅 저장에 들어가지 않고, 꽂힌 케이블은 저장된다', async () => {
     const { m } = await make();
     const items = m.toSetupItems();
     expect(items.map((i) => i.id)).not.toContain('wall');
     expect(m.cables.some((c) => c.from.deviceId === 'wall')).toBe(true);
-  });
-  it('R2: 케이블이 없으면 꺼짐', async () => {
-    const { run, screen } = await make({ cable: false });
-    run();
-    expect(screen.readouts.receivedPowerW).toBe(0);
   });
   it('R1: 사이에 장비가 있으면 막힘 → 스크린 0, 빛은 그 장비 앞에서 멈춤', async () => {
     const { run, screen, light } = await make({ blocker: true });
@@ -150,12 +162,11 @@ describe('레이저 → 스크린', () => {
     await m.load(parseSetup({
       version: 2,
       equipment: [
-        { id: 'ps', type: 'power-supply', positionM: [-0.6, 0, 0] },
         { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
         { id: 'slit', type: 'double-slit', positionM: [0.05, 0, 0.4] },
         { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
       ],
-      cables: [mainsCable, { from: { deviceId: 'ps', portId: 'out' }, to: { deviceId: 'laser', portId: 'power' } }],
+      cables: [laserCable],
     }, registry.definitions, outlet));
     for (let i = 0; i < 5; i++) {
       light.beginFrame();

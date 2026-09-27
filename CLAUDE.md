@@ -65,7 +65,7 @@
 - `public/assets.json`
   - `assets`: 에셋 이름 → `.glb 경로` 또는 `null`(placeholder)
   - `placeholders`: null 일 때의 외형(색, 두께) / `environment`: 배경색·조명 / `placementPreview`: 배치 미리보기 색·투명도
-  - `wiring`: 케이블 색·굵기, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker`
+  - `wiring`: 케이블 색·굵기, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker` (평소 숨김, 고른 포트에만 표시)
 - `public/lab.json` — 방 크기, 가구(furniture: 테이블·찬장 위치·크기), 고정 설비(fixtures: 테이블 콘센트), 격자(cellSizeM), 케이블(최대 길이 등), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
 - `src/assets/` — AssetRegistry(이름 → Object3D), placeholder 상자(원점=바닥 중앙)
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
@@ -126,8 +126,11 @@
 - 전원 코드(장비에 달린 선): Electric 입력 포트에 `cord: { plug: "mains" | "dc" }` → 장비에서 선이 나와
   끝에 플러그(에셋 `plug`)가 달림. 안 꽂혀 있으면 lab.json cable.looseRestM 만큼 바닥면에 늘어져 있음.
   플러그 탭 = 뽑기/꽂기 시작. 꽂는 곳 = Electric 출력 포트의 `socket` 종류가 같아야 함(plug-kind 오류)
-  현재: 테이블 콘센트(socket mains, 220 V) ← 전원 장치 mains 코드 / 전원 장치 out(socket dc) ← 레이저 dc 코드
-  전원 장치는 mains 에 전압이 있을 때만 출력(교류는 무시, 전압 크기만 전달)
+  현재: 테이블 콘센트(socket mains, 220 V) ← 전원 장치 mains 코드, 레이저 mains 코드
+  직류 전원 장치(R9 CV/CC, 설정 전압·전류 한계): mains 에 전압이 있을 때만 출력, out(socket dc) 은 추후 LED 등 부하용.
+  아직 부하가 자기 특성(저항 등)을 알리는 방식이 없어 항상 개방(전류 0 A) — 부하 장비 추가 시 붙일 것
+- params 에 `options: [{value, label}]` 가 있으면 스위치(버튼 묶음) UI. 값은 숫자(SI)로 저장.
+  레이저 스위치 = wavelengthM: OFF(0) / 650 nm / 532 nm (R2′)
 - 고정 설비(fixtures): lab.json `fixtures`(id·type·위치·회전). 정의에 `"fixed": true` 인 장비만 가능.
   집기·회전 불가, 세팅 저장 제외(꽂힌 케이블은 저장). 세팅 cables 에서 fixture id 로 참조
 - 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다

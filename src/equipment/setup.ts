@@ -62,7 +62,9 @@ export function parseSetup(
     const params: Record<string, number> = {};
     for (const p of def.params) {
       const v = given[p.key];
-      params[p.key] = isNum(v) ? Math.min(p.max, Math.max(p.min, v)) : p.default;
+      if (!isNum(v)) params[p.key] = p.default;
+      else if (p.options) params[p.key] = p.options.some((o) => o.value === v) ? v : p.default; // 없는 스위치 값 → 기본값
+      else params[p.key] = Math.min(p.max, Math.max(p.min, v));
     }
     return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params };
   });
