@@ -380,6 +380,7 @@ export class EquipmentManager {
         ...(p.directionLocal ? { worldDirM: directionToWorld(p.directionLocal, inst.rotationYDeg * DEG) } : {}),
         ...(p.faceSizeM ? { faceSizeM: p.faceSizeM } : {}),
         ...(p.continuesFrom ? { continuesFrom: p.continuesFrom } : {}),
+        ...(p.displaysLight ? { displaysLight: true } : {}),
       })),
     );
   }

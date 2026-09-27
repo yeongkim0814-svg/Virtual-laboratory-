@@ -13,6 +13,8 @@ export interface PortRef {
   worldDirM?: Vec3;
   /** Light 입력만: 받는 면 크기 [가로, 세로]. */
   faceSizeM?: [number, number];
+  /** Light 입력만: 닿은 빛(빛 점·간섭 무늬)을 이 면에 그린다(PortDef.displaysLight). */
+  displaysLight?: boolean;
   /** Light 출력만: 이 입력 포트에 닿은 광선을 이어서 내보낸다(PortDef.continuesFrom). */
   continuesFrom?: string;
 }
@@ -22,8 +24,11 @@ export interface Emission {
   signal: Signal;
 }
 
+/** 라우터가 고른 받는 포트. extraValues = 전달 경로가 덧붙이는 값(예: 빛의 입사각), 신호 값에 합쳐진다. */
+export type RouteTarget = PortRef & { extraValues?: Record<string, number> };
+
 /** 출력 포트 하나가 어느 입력 포트들에 닿는지 결정한다. 채널별로 교체 가능. */
-export type Router = (from: PortRef, inputs: readonly PortRef[], signal: Signal) => PortRef[];
+export type Router = (from: PortRef, inputs: readonly PortRef[], signal: Signal) => RouteTarget[];
 
 export const portKey = (deviceId: string, portId: string): string => `${deviceId}/${portId}`;
 
@@ -44,9 +49,10 @@ export class SignalBus {
       const router = this.routers[e.from.channel] ?? this.defaultRouter;
       for (const target of router(e.from, inputs, e.signal)) {
         const k = portKey(target.deviceId, target.portId);
+        const signal = target.extraValues ? { ...e.signal, values: { ...e.signal.values, ...target.extraValues } } : e.signal;
         const list = out.get(k);
-        if (list) list.push(e.signal);
-        else out.set(k, [e.signal]);
+        if (list) list.push(signal);
+        else out.set(k, [signal]);
       }
     }
     return out;

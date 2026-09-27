@@ -16,6 +16,7 @@ import { CableLayout } from './signal/cableLayout';
 import { LightRouter } from './signal/lightRouter';
 import { GlowView } from './interaction/glowView';
 import { LaserView } from './interaction/laserView';
+import { PatternView } from './interaction/patternView';
 import { ScreenOverlay } from './interaction/screenOverlay';
 import { furnitureBoxes } from './room/furnitureParts';
 import { EquipmentPanel } from './ui/equipmentPanel';
@@ -72,6 +73,7 @@ async function main(): Promise<void> {
   const cableView = new CableView(scene, cableLayout.routes, cableLayout.plugs, assetsFile.wiring, () => assets.create('plug'));
   const laserView = new LaserView(scene, assetsFile.laserBeam);
   const screenOverlay = new ScreenOverlay(equipment, assetsFile.screenOverlay);
+  const patternView = new PatternView(scene, assetsFile.screenOverlay);
   const glowView = new GlowView(equipment, assets);
   await equipment.load(parseSetup(defaultSetup, equipmentRegistry.definitions, fixtures));
 
@@ -135,7 +137,8 @@ async function main(): Promise<void> {
     light.beginFrame();
     equipment.update(dtS);
     laserView.update(light.beams);
-    screenOverlay.update(light.beams);
+    screenOverlay.update();
+    patternView.update(light.beams);
     glowView.update();
     panel.tick();
     holdControls.tick();

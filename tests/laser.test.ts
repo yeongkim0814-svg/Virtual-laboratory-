@@ -180,6 +180,9 @@ describe('레이저 → 스크린', () => {
     expect(out.originM[1]).toBeCloseTo(0.1, 9);
     expect(out.trace.pointM[0]).toBeCloseTo(0, 9);
     expect(out.target?.deviceId).toBe('screen');
+    // R6′: θᵢ = 30° → 1 mW × 2·0.03/1 × cos30° = 0.05196 mW
+    expect(m.get('slit')!.readouts.transmittedPowerW).toBeCloseTo(5.196e-5, 8);
+    expect(m.get('screen')!.readouts.receivedPowerW).toBeCloseTo(5.196e-5, 8);
   });
   it('슬릿판 조준 영역(2 × 2 cm) 밖에 닿으면 판에 막힌다', async () => {
     let m!: EquipmentManager;

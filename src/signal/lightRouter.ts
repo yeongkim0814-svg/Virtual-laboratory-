@@ -1,7 +1,7 @@
 import type { RoomSize, Vec3 } from '../config/types';
-import { traceRay, type Face, type OrientedBox, type TraceResult } from '../physics/optics';
+import { hitSurface, traceRay, type Face, type OrientedBox, type SurfaceRect, type TraceResult } from '../physics/optics';
 import type { Signal } from './channels';
-import { portKey, type PortRef, type Router } from './signalBus';
+import { portKey, type PortRef, type RouteTarget, type Router } from './signalBus';
 
 /** 이번 프레임에 나간 빛 하나(그리기용). */
 export interface Beam {
@@ -16,6 +16,10 @@ export interface Beam {
   face?: Face;
   /** 닿은 면의 포트(장비 id·포트 id). */
   target?: PortRef;
+  /** 닿은 곳의 면 사각형(받는 면·장비 몸체·가구·벽 어디든) — 간섭 무늬를 그 면에 그린다. */
+  surface?: SurfaceRect;
+  /** 빛을 지나보낸 장비(슬릿)의 판 법선 = 출력 포트 방향. 무늬 각도(R5′)의 기준. */
+  sourceNormalM?: Vec3;
 }
 
 const UP: Vec3 = [0, 1, 0];
@@ -46,7 +50,7 @@ export class LightRouter {
     this.beams = [];
   }
 
-  readonly router: Router = (from: PortRef, inputs: readonly PortRef[], signal: Signal): PortRef[] => {
+  readonly router: Router = (from: PortRef, inputs: readonly PortRef[], signal: Signal): RouteTarget[] => {
     // 빛을 "지나보내는" 출력(슬릿): 입력 면에 닿은 광선을 그 점에서 같은 방향으로 잇는다(R1 직진)
     const arrival = from.continuesFrom ? this.arrivals.get(portKey(from.deviceId, from.continuesFrom)) : undefined;
     if (from.continuesFrom && !arrival) return [];
@@ -71,6 +75,9 @@ export class LightRouter {
     const hit = trace.hit;
     const target = hit.kind === 'face' ? byFace.get(hit.id) : undefined;
     if (target) this.arrivals.set(portKey(target.deviceId, target.portId), { pointM: trace.pointM, dirM: dir });
+    // R6′: 받는 면에 대한 입사각 — 면의 가로축(위 × 법선, 슬릿 간격 방향) 성분 sinθᵢ → cosθᵢ = √(1 − sin²θᵢ)
+    const face = hit.kind === 'face' ? faces.find((f) => f.id === hit.id) : undefined;
+    const sinIn = face ? dot(dir, face.uAxis) : 0;
     this.beams.push({
       fromDeviceId: from.deviceId,
       originM,
@@ -78,10 +85,12 @@ export class LightRouter {
       wavelengthM: signal.values.wavelengthM ?? 0,
       powerW: signal.values.powerW ?? 0,
       values: signal.values,
-      face: hit.kind === 'face' ? faces.find((f) => f.id === hit.id) : undefined,
+      face,
       target,
+      surface: face ?? hitSurface(trace.pointM, hit, boxes, this.world.room) ?? undefined,
+      ...(from.continuesFrom && from.worldDirM ? { sourceNormalM: normalize(from.worldDirM) } : {}),
     });
-    return target ? [target] : [];
+    return target ? [{ ...target, extraValues: { incidenceCos: Math.sqrt(Math.max(0, 1 - sinIn * sinIn)) } }] : [];
   };
 }
 
@@ -94,6 +103,7 @@ function pointOnPlane(p: Vec3, d: Vec3, q: Vec3, n: Vec3 | undefined): Vec3 {
   return [p[0] + d[0] * t, p[1] + d[1] * t, p[2] + d[2] * t];
 }
 
+const dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 function normalize(v: Vec3): Vec3 {
   const l = Math.hypot(...v);

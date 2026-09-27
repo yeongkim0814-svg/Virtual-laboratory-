@@ -1,6 +1,7 @@
 // 물리 규칙: 레이저 1단계. 기대값은 사용자 승인 값(R1 직진, R2 켜짐 조건, R4 파장 → 색).
+import type { Vec3 } from '../src/config/types';
 import { describe, expect, it } from 'vitest';
-import { laserOn, traceRay, wavelengthToRgb, type Face, type OrientedBox } from '../src/physics/optics';
+import { hitSurface, laserOn, traceRay, wavelengthToRgb, type Face, type OrientedBox } from '../src/physics/optics';
 
 const room = { widthM: 10, depthM: 10, heightM: 3 };
 const o: [number, number, number] = [0, 0.85, 0];
@@ -62,3 +63,26 @@ describe('R4 파장 → 빔 색 (Bruton 1996 근사, 보기용)', () => {
 function expectRgb(a: [number, number, number], b: [number, number, number]): void {
   a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 5));
 }
+
+describe('hitSurface: 광선이 닿은 벽·상자 면(무늬를 그릴 면, 기하)', () => {
+  const room = { widthM: 10, depthM: 8, heightM: 3 };
+  it('동쪽 벽(x = +5) → 법선 (−1, 0, 0), 벽 전체 사각형(가로·세로 반크기 4, 1.5 중 하나씩)', () => {
+    const r = hitSurface([5, 1, 2], { kind: 'room' }, [], room)!;
+    expect(r.normal).toEqual([-1, -0, -0]);
+    expect(r.centerM).toEqual([5, 1.5, 0]);
+    expect([r.halfWidthM, r.halfHeightM].sort()).toEqual([1.5, 4]);
+  });
+  it('바닥 → 법선 (0, 1, 0)', () => {
+    expect(hitSurface([1, 0, 1], { kind: 'room' }, [], room)!.normal).toEqual([0, 1, 0]);
+  });
+  it('90° 돌린 상자의 옆면: 로컬 +z 면 → 월드 +x 방향 법선, 중심 = 상자 중심 + 반크기', () => {
+    const box = { id: 'b', centerM: [0, 0.5, 0] as Vec3, halfM: [0.1, 0.5, 0.3] as Vec3, yawRad: Math.PI / 2 };
+    const r = hitSurface([0.3, 0.5, 0.02], { kind: 'box', id: 'b' }, [box], room)!;
+    expect(r.normal[0]).toBeCloseTo(1, 9);
+    expect(r.normal[2]).toBeCloseTo(0, 9);
+    expect(r.centerM[0]).toBeCloseTo(0.3, 9);
+  });
+  it('받는 면(face) 이면 null(그 면 자체를 쓴다)', () => {
+    expect(hitSurface([0, 0, 0], { kind: 'face', id: 'f', u: 0, v: 0 }, [], room)).toBeNull();
+  });
+});

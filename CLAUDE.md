@@ -87,14 +87,18 @@
 - `src/interaction/laserView.ts` — 빛 선·빛 점 그리기(색 = 파장, 외형 = assets.json laserBeam)
 - `src/physics/doubleSlit.ts` — 이중 슬릿(승인 규칙): R5 I/I₀ = cos²(πd sinθ/λ)·sinc²(πa sinθ/λ), sinθ = y/√(y²+L²),
   R6 투과 P_out = P_in·2a/D(빔 지름 1 mm). R7 조준 영역에 닿으면 두 슬릿 가운데를 지난다고 봄, L = 가운데 광선 거리
-- `src/interaction/screenOverlay.ts` — 스크린 면(displaysLight): 1 mm 눈금 + 간섭 무늬 셰이더(R5 를 GLSL 로 옮김,
-  같은 식인지 코드 리뷰로 확인 — 셰이더는 단위 테스트 불가). 색 = 파장 색 × I/I₀(R8). 실제 크기(세로 = 빔 지름)
+  비스듬한 입사: R5′ s = sinθ − sinθᵢ 로 바꾼 같은 식(sin = 슬릿 간격 방향 성분), R6′ × cosθᵢ
+  (cosθᵢ 는 빛 라우터가 받는 포트에 extraValues.incidenceCos 로 붙여 줌)
+- `src/interaction/screenOverlay.ts` — 스크린 면(displaysLight)의 1 mm 눈금
+- `src/interaction/patternView.ts` — 간섭 무늬(R5′ 를 GLSL 로 옮김, 셰이더는 단위 테스트 불가 → 코드 리뷰로 같은 식 확인).
+  슬릿을 지난 빛이 닿은 면 어디든(스크린·벽·바닥·가구·장비 옆면) 그린다. 픽셀의 월드 위치 → 슬릿 방향으로 sinθ 계산
+  → 기울어진 면도 정확. 닿은 면 사각형 = optics.hitSurface. 색 = 파장 색 × I/I₀(R8), 세로 = 빔 지름 띠.
+  한계: 슬릿 → 무늬 사이 장애물의 부분 가림은 다루지 않음(가운데 광선만 추적)
 - 장비: power-supply(직류 전원), laser(전기 입력 → 빛 출력, +z), double-slit(뒤 조준 영역 2×2 cm → 앞으로 슬릿 빛),
   screen(빛 받는 면 +z, 세기·파장 표시, 무늬·눈금), test-*(채널 확인용)
 - Light 포트: 정의에 directionLocal(단위벡터), 입력은 faceSizeM. 케이블로 잇지 않음.
   빛을 지나보내는 장비(슬릿)의 출력은 `continuesFrom: "<입력 id>"` → 입력 면에 닿은 광선을 같은 직선으로 잇는다
   (출발점 = 그 직선이 출력 면과 만나는 점). 장비를 돌려도 빛이 꺾이지 않음(R1).
-  단, 무늬 식은 아직 수직 입사 가정(R7) — 비스듬한 입사 식은 승인 대기
   params/readouts 의 displayScale: 값은 SI 로 저장, 표시는 × 배율(예: 파장 m → nm 1e9)
 - 광축 높이: 광학 장비의 빛 출구·받는 면 중심은 놓인 면에서 0.10 m
 - `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)

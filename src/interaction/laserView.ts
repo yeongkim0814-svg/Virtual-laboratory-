@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AssetsFile } from '../config/types';
 import { wavelengthToRgb } from '../physics/optics';
 import type { Beam } from '../signal/lightRouter';
+import { PatternView } from './patternView';
 
 /**
  * 레이저 빛 그리기: 출구 → 닿은 곳까지 가는 선(원기둥) + 닿은 곳의 빛 점.
@@ -28,8 +29,8 @@ export class LaserView {
     this.pool.forEach((p, i) => {
       const b = beams[i];
       p.beam.visible = !!b && this.style.showBeam;
-      // 슬릿을 지난 빛이 스크린에 닿으면 빛 점 대신 간섭 무늬(ScreenOverlay)가 보인다
-      p.spot.visible = !!b && !(b.values.slitSpacingM !== undefined && b.target);
+      // 슬릿을 지난 빛이 면(스크린·벽 등)에 닿으면 빛 점 대신 간섭 무늬(PatternView)가 보인다
+      p.spot.visible = !!b && !PatternView.drawsPattern(b);
       if (!b) return;
       const color = new THREE.Color(...wavelengthToRgb(b.wavelengthM));
       (p.beam.material as THREE.MeshBasicMaterial).color.copy(color);

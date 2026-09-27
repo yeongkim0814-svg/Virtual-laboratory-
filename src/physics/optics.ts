@@ -77,6 +77,57 @@ export function traceRay(
   return { tM: t, pointM: [o[0] + t * d[0], o[1] + t * d[1], o[2] + t * d[2]], hit: best.hit };
 }
 
+/** 면(사각형) 정보. Face 에서 id 만 뺀 것. */
+export type SurfaceRect = Omit<Face, 'id'>;
+
+/**
+ * 광선이 닿은 상자·방 표면의 사각형(중심·바깥 법선·가로축·반폭·반높이). 무늬를 그 면에 그릴 때 쓴다(기하 계산, 물리 규칙 아님).
+ * 상자: 닿은 점을 로컬 좌표로 → 반크기 대비 가장 바깥인 축의 면. 방: 가장 가까운 벽·바닥·천장(법선은 방 안쪽).
+ */
+export function hitSurface(pointM: Vec3, hit: TraceHit, boxes: readonly OrientedBox[], room: RoomSize): SurfaceRect | null {
+  if (hit.kind === 'box') {
+    const b = boxes.find((x) => x.id === hit.id);
+    if (!b) return null;
+    const c = Math.cos(b.yawRad);
+    const sn = Math.sin(b.yawRad);
+    const axes: Vec3[] = [[c, 0, -sn], [0, 1, 0], [sn, 0, c]]; // 로컬 x, y, z 의 월드 방향
+    const rel = sub(pointM, b.centerM);
+    const local = axes.map((e) => dot(rel, e));
+    let i = 0;
+    for (let k = 1; k < 3; k++) if (Math.abs(local[k]) / b.halfM[k] > Math.abs(local[i]) / b.halfM[i]) i = k;
+    const sign = local[i] >= 0 ? 1 : -1;
+    const normal = scale(axes[i], sign);
+    const [j, k] = [0, 1, 2].filter((x) => x !== i);
+    return rectOn(add(b.centerM, scale(normal, b.halfM[i])), normal, axes[j], b.halfM[j], b.halfM[k]);
+  }
+  if (hit.kind === 'room') {
+    const lo: Vec3 = [-room.widthM / 2, 0, -room.depthM / 2];
+    const hi: Vec3 = [room.widthM / 2, room.heightM, room.depthM / 2];
+    const half: Vec3 = [(hi[0] - lo[0]) / 2, (hi[1] - lo[1]) / 2, (hi[2] - lo[2]) / 2];
+    const mid: Vec3 = [(hi[0] + lo[0]) / 2, (hi[1] + lo[1]) / 2, (hi[2] + lo[2]) / 2];
+    let best = { i: 0, atHi: false, dist: Infinity };
+    for (let i = 0; i < 3; i++) {
+      if (pointM[i] - lo[i] < best.dist) best = { i, atHi: false, dist: pointM[i] - lo[i] };
+      if (hi[i] - pointM[i] < best.dist) best = { i, atHi: true, dist: hi[i] - pointM[i] };
+    }
+    const e: Vec3[] = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+    const normal = scale(e[best.i], best.atHi ? -1 : 1); // 방 안쪽
+    const center: Vec3 = [...mid];
+    center[best.i] = best.atHi ? hi[best.i] : lo[best.i];
+    const [j, k] = [0, 1, 2].filter((x) => x !== best.i);
+    return rectOn(center, normal, e[j], half[j], half[k]);
+  }
+  return null;
+}
+
+/** 법선 n, 가로축 u(면 위)로 사각형을 만든다. 세로축 v = n × u 방향의 반높이는 u 와 다른 나머지 축의 반크기. */
+function rectOn(centerM: Vec3, normal: Vec3, uAxis: Vec3, halfU: number, halfOther: number): SurfaceRect {
+  return { centerM, normal, uAxis, halfWidthM: halfU, halfHeightM: halfOther };
+}
+
+const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const scale = (a: Vec3, k: number): Vec3 => [a[0] * k, a[1] * k, a[2] * k];
+
 function roomExitT(o: Vec3, d: Vec3, room: RoomSize): number {
   const lo: Vec3 = [-room.widthM / 2, 0, -room.depthM / 2];
   const hi: Vec3 = [room.widthM / 2, room.heightM, room.depthM / 2];

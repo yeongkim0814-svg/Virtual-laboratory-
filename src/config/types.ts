@@ -38,6 +38,8 @@ export interface AssetsFile {
     rulerLineWidthM: number;
     liftM: number;
     patternGain: number;
+    /** 무늬를 그리는 범위: 슬릿 하나 회절 포락선의 몇 번째 0 까지(양쪽). 그 밖은 매우 어둡다. */
+    patternExtentLobes: number;
   };
   /** 장비 회전 중 표시하는 고리(밑넓이 원 둘레). */
   rotateGizmo: { color: string; tubeRadiusM: number; opacity: number; liftM: number };
