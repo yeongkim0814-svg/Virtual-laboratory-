@@ -59,7 +59,7 @@ const outlet = fixtureItems([{ id: 'wall', type: 'table-outlet', positionM: [-0.
 async function circuit(voltageV: number, currentLimitA: number) {
   let m!: EquipmentManager;
   m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), {
-    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0, fixtures: outlet,
+    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountableHitRadiusM: 0, fixtures: outlet,
   });
   await m.load(parseSetup({
     version: 2,

@@ -24,7 +24,7 @@ export interface EquipmentInstance extends SetupItem {
   object: THREE.Object3D;
   /** 포트 id → 포트 표시(탭 대상). */
   portMarkers: Map<string, THREE.Object3D>;
-  /** mounts id → 탭 대상(들고 있는 mountOnly 장비를 여기 끼운다). */
+  /** mounts id → 탭 대상(들고 있는 mountable 장비를 여기 끼운다). */
   mountMarkers: Map<string, THREE.Object3D>;
   /** 손에 들려 있으면 true. 들린 장비의 포트는 신호 라우팅에서 빠진다(케이블은 꽂힌 채). */
   held: boolean;
@@ -49,8 +49,8 @@ export interface ManagerOptions {
   fixtures?: readonly SetupItem[];
   /** 포트 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
   portHitRadiusM: number;
-  /** mountOnly 장비(슬릿·LED 등) 몸통 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
-  mountOnlyHitRadiusM: number;
+  /** mountable 장비(슬릿·LED 등) 몸통 탭 판정용 보이지 않는 구의 반지름. 0 이면 만들지 않는다. */
+  mountableHitRadiusM: number;
 }
 
 /** -180 < deg ≤ 180 로 정규화, 소수 둘째 자리까지. */
@@ -369,10 +369,10 @@ export class EquipmentManager {
     object.userData.equipmentId = item.id;
     const portMarkers = await this.addPortMarkers(object, item.id, def);
     const mountMarkers = this.addMountMarkers(object, item.id, def, item.params);
-    if (def.mountOnly && this.options.mountOnlyHitRadiusM > 0) {
+    if (def.mountable && this.options.mountableHitRadiusM > 0) {
       // 클램프에 끼운 작은 장비(슬릿 등)는 내려다보면 얇은 면이 거의 안 보여 탭하기 어려움 →
       // 보이지 않는 큰 구로 몸통 전체를 감싸 어느 각도에서도 탭이 걸리게 한다.
-      const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.mountOnlyHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
+      const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.mountableHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
       hit.visible = false;
       hit.position.set(0, heightM / 2, 0);
       object.add(hit);
@@ -419,23 +419,18 @@ export class EquipmentManager {
   }
 
   /**
-   * 포트마다 탭 판정용 보이지 않는 구와 표시(assets.json "port-marker")를 단다.
-   * 표시는 평소 숨김 — 포트를 골랐을 때만 보인다(holder.userData.marker, Interaction.selectPort).
+   * 포트마다 위치 기준점(holder, 케이블 끝점)과 탭 판정용 보이지 않는 구를 단다.
+   * 전원선(cord) 포트는 구를 달지 않는다 — 그 포트의 탭 대상은 전선 끝의 플러그이고, 장비 몸체에 큰 구가
+   * 있으면 몸체 탭(집기·두 번 탭)이 전부 이 구에 가려진다(작은 LED 는 몸 전체가 가려짐).
    */
   private async addPortMarkers(object: THREE.Object3D, deviceId: string, def: EquipmentDefinition): Promise<Map<string, THREE.Object3D>> {
     const markers = new Map<string, THREE.Object3D>();
     for (const p of def.ports) {
-      if (p.channel === 'Light') continue; // 빛 포트는 케이블을 꽂지 않으므로 표시·탭 대상 없음
+      if (p.channel === 'Light') continue; // 빛 포트는 케이블을 꽂지 않으므로 탭 대상 없음
       const holder = new THREE.Group(); // 포트 위치에 중심을 둔다
       holder.position.set(...p.positionM);
       holder.userData.port = { deviceId, portId: p.id } satisfies PortAddress;
-      const marker = await this.assets.create('port-marker');
-      const box = new THREE.Box3().setFromObject(marker);
-      if (!box.isEmpty()) marker.position.y = -(box.min.y + box.max.y) / 2; // 모델 원점(바닥 중앙) → 중심 정렬
-      marker.visible = false;
-      holder.userData.marker = marker;
-      holder.add(marker);
-      if (this.options.portHitRadiusM > 0) {
+      if (this.options.portHitRadiusM > 0 && !p.cord) {
         const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.portHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
         hit.visible = false; // 보이지 않지만 레이캐스트에는 걸린다(작은 포트를 손가락으로 탭하기 쉽게)
         holder.add(hit);
@@ -446,7 +441,7 @@ export class EquipmentManager {
     return markers;
   }
 
-  /** mounts 자리마다 탭 판정용 보이지 않는 구를 단다(들고 있는 mountOnly 장비를 여기 끼운다). */
+  /** mounts 자리마다 탭 판정용 보이지 않는 구를 단다(들고 있는 mountable 장비를 여기 끼운다). */
   private addMountMarkers(
     object: THREE.Object3D, deviceId: string, def: EquipmentDefinition, params: Record<string, number>,
   ): Map<string, THREE.Object3D> {
@@ -475,6 +470,8 @@ export class EquipmentManager {
    * - 자리가 찼으면 그 자리의 탭 판정 구를 끈다. 빈 자리를 겨눌 때 쓰는 큰 구(portHitRadiusM)가
    *   자리가 차 있는 동안에도 남아 있으면, 끼운 장비 자신의(훨씬 작은) 탭 판정을 가려 버려
    *   빼고 다시 끼우기가 사실상 안 됨 — 자리가 비었을 때만 켠다.
+   * - 끼운 장비(들고 있지 않은 것)는 호스트의 지금 위치·회전·자리 높이를 따라간다
+   *   (끼운 채로 클램프 높이를 바꾸면 끼운 장비도 같이 오르내림). 자기 회전은 독립.
    */
   private syncMounts(): void {
     for (const inst of this.instances) {
@@ -489,6 +486,15 @@ export class EquipmentManager {
         const hit = holder?.children.find((c) => c.userData.mountHit);
         hit?.scale.setScalar(occupied ? 0 : 1);
       }
+    }
+    for (const inst of this.instances) {
+      if (!inst.mountedOn || inst.held) continue;
+      const host = this.get(inst.mountedOn.deviceId);
+      const mountDef = host?.def.mounts?.find((m) => m.id === inst.mountedOn!.mountId);
+      if (!host || !mountDef) continue;
+      const p = localToWorld(mountLocalM(mountDef, host.params), host.positionM, host.rotationYDeg * DEG);
+      inst.positionM = p;
+      inst.object.position.set(...p);
     }
   }
 

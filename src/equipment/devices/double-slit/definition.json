@@ -3,7 +3,7 @@
   "label": "이중 슬릿",
   "asset": "double-slit",
   "hold": { "hands": 1, "grips": [[0, 0.03, 0]] },
-  "mountOnly": true,
+  "mountable": true,
   "channels": ["Light"],
   "ports": [
     { "id": "in", "channel": "Light", "direction": "in", "positionM": [0, 0.02, -0.005], "directionLocal": [0, 0, -1], "faceSizeM": [0.008, 0.008] },

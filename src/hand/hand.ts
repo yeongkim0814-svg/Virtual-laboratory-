@@ -11,7 +11,7 @@ const DEG = Math.PI / 180;
 export interface PlacementPose {
   positionM: Vec3;
   yawRad: number;
-  /** 클램프 등에 끼우는 거라면 그 장비·자리(mountOnly 장비만). */
+  /** 클램프 등에 끼우는 거라면 그 장비·자리(mountable 장비만). */
   mountedOn?: { deviceId: string; mountId: string };
 }
 /** 들고 있는 동안 목표 자세를 따라가는 빠르기(1/s). */

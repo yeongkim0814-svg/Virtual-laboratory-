@@ -12,6 +12,7 @@ import { fixtureItems, parseSetup, serializeSetup } from './equipment/setup';
 import { SignalBus } from './signal/signalBus';
 import { cableRouter } from './signal/cables';
 import { CableView } from './signal/cableView';
+import { SelectionHighlight } from './interaction/selectionHighlight';
 import { CableLayout } from './signal/cableLayout';
 import { LightRouter } from './signal/lightRouter';
 import { GlowView } from './interaction/glowView';
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
   const equipment: EquipmentManager = new EquipmentManager(scene, equipmentRegistry, assets, bus, {
     grid: { cellSizeM: lab.grid.cellSizeM, surfaces },
     portHitRadiusM: assetsFile.wiring.portHitRadiusM,
-    mountOnlyHitRadiusM: assetsFile.wiring.mountOnlyHitRadiusM,
+    mountableHitRadiusM: assetsFile.wiring.mountableHitRadiusM,
     fixtures,
   });
   const cableLayout = new CableLayout(equipment, lab, assetsFile.wiring.cableRadiusM, surfaces);
@@ -87,8 +88,9 @@ async function main(): Promise<void> {
   const holdControls = new HoldControls(hand, player);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
   const paramsPopup = new ParamsPopup();
+  const highlight = new SelectionHighlight(assetsFile.selectionHighlight);
   const interaction = new Interaction(
-    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
+    camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), highlight,
     cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo), cableView.plugGroup, (inst) => paramsPopup.show(inst),
   );
 
@@ -138,6 +140,7 @@ async function main(): Promise<void> {
     interaction.update();
     if (cableLayout.update().length > 0) holdControls.notify('케이블이 빠졌어요 (너무 멀거나 길이 막힘)');
     cableView.update();
+    highlight.update(dtS);
     light.beginFrame();
     equipment.update(dtS);
     laserView.update(light.beams);

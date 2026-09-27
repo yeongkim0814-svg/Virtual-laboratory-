@@ -97,10 +97,10 @@ export interface EquipmentDefinition {
    */
   mounts?: { id: string; positionM: Vec3; heightParam?: string }[];
   /**
-   * 바닥·테이블·선반에 직접 놓을 수 없고, 클램프 등의 mounts 자리에만 끼울 수 있는 장비(작은 슬릿·LED 등).
-   * 세팅 JSON 에서 이 장비는 반드시 mountedOn 을 갖는다.
+   * 클램프 등의 mounts 자리에 끼워 쓰는 작은 장비(슬릿·LED 등). 바닥·테이블·선반에 그냥 내려놓을 수도 있다
+   * (보관용 — 광축 높이가 안 맞으므로 실험엔 끼워서 씀). 세팅 JSON 의 mountedOn 은 이 장비만 가질 수 있다.
    */
-  mountOnly?: boolean;
+  mountable?: boolean;
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];

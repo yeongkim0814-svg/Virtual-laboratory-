@@ -90,6 +90,6 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
       }
     }
   }
-  if (d.mountOnly && d.mounts?.length) errs.push(`${at}: mountOnly 장비는 mounts 를 가질 수 없음(둘 다는 안 됨)`);
+  if (d.mountable && d.mounts?.length) errs.push(`${at}: mountable 장비는 mounts 를 가질 수 없음(둘 다는 안 됨)`);
   return errs;
 }

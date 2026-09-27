@@ -19,8 +19,7 @@ const cfg: HandConfig = {
   swing: { durationS: 0.3, grabAtPhase: 0.35, offsetM: [-0.1, 0.05, -0.08], rotDeg: [-40, -20, -20] },
 };
 const fakeAssets = {
-  create: async (name: string) =>
-    createPlaceholderBox(name === 'port-marker' ? [0.03, 0.03, 0.03] : [0.3, 0.2, 0.2], '#000000'),
+  create: async () => createPlaceholderBox([0.3, 0.2, 0.2], '#000000'),
 };
 
 async function setup() {
@@ -29,7 +28,7 @@ async function setup() {
   scene.add(camera);
   const m: EquipmentManager = new EquipmentManager(scene, registry, fakeAssets, new SignalBus(cableRouter(() => m.cables)), {
     grid: { cellSizeM: 0.05, surfaces: new Surfaces({ widthM: 10, depthM: 10, heightM: 3 }, [], 0.05) },
-    portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
+    portHitRadiusM: 0, mountableHitRadiusM: 0,
   });
   await m.load(parseSetup({
     version: 2,

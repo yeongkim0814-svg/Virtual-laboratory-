@@ -3,7 +3,7 @@
   "label": "LED",
   "asset": "led",
   "hold": { "hands": 1, "grips": [[0, 0.03, 0]] },
-  "mountOnly": true,
+  "mountable": true,
   "channels": ["Electric"],
   "ports": [
     { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0, 0.01], "cord": { "plug": "dc" } }

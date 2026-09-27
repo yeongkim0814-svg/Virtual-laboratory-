@@ -41,6 +41,11 @@ export interface AssetsFile {
     /** 무늬를 그리는 범위: 슬릿 하나 회절 포락선의 몇 번째 0 까지(양쪽). 그 밖은 매우 어둡다. */
     patternExtentLobes: number;
   };
+  /**
+   * 케이블을 이으려고 고른 포트 표시(SelectionHighlight): 대상(전선 플러그 / 소켓이 있는 장비)의
+   * 색을 color 쪽으로 colorMix 만큼 섞고, 크기를 1 ↔ pulseScale 로 pulseHz 박자로 오가게, 플러그는 liftM 만큼 들썩.
+   */
+  selectionHighlight: { color: string; colorMix: number; pulseScale: number; pulseHz: number; liftM: number };
   /** 장비 회전 중 표시하는 고리(밑넓이 원 둘레). */
   rotateGizmo: { color: string; tubeRadiusM: number; opacity: number; liftM: number };
 }
@@ -51,13 +56,11 @@ export interface WiringStyle {
   cableRadiusM: number;
   /** 포트 탭 판정 반경(보이지 않음). 작은 포트를 손가락으로 누르기 쉽게. */
   portHitRadiusM: number;
-  /** 케이블을 이을 포트를 골랐을 때 포트 표시 확대 배율. */
-  selectedPortScale: number;
   /**
-   * mountOnly 장비(클램프에 끼우는 슬릿·LED 등) 몸통 탭 판정 반경(보이지 않음).
+   * mountable 장비(클램프에 끼우는 슬릿·LED 등) 몸통 탭 판정 반경(보이지 않음).
    * 얇은 면이 위에서 보면 거의 안 보이는 각도에서도 탭이 걸리도록 실제 모델보다 넉넉하게.
    */
-  mountOnlyHitRadiusM: number;
+  mountableHitRadiusM: number;
 }
 
 /** 배치 미리보기(반투명 장비 + 밑넓이 셀) 외형. */

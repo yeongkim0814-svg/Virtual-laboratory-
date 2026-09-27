@@ -14,7 +14,7 @@ export interface SetupItem {
   rotationYDeg: number;
   params: Record<string, number>;
   /**
-   * 클램프 등에 끼워져 있으면: 그 장비 id·mounts id. mountOnly 장비는 반드시 있어야 한다.
+   * 클램프 등에 끼워져 있으면: 그 장비 id·mounts id(mountable 장비만).
    * 위치는 저장돼도 무시되고, 불러올 때 끼운 장비의 자리로 다시 계산된다(EquipmentManager.validate).
    */
   mountedOn?: { deviceId: string; mountId: string };
@@ -80,8 +80,7 @@ export function parseSetup(
       }
       mountedOn = { deviceId: mo.deviceId, mountId: mo.mountId };
     }
-    if (def.mountOnly && !mountedOn) throw new Error(`${where}: ${def.type} 는 mountedOn 필요(클램프 등에 끼워야 함)`);
-    if (!def.mountOnly && mountedOn) throw new Error(`${where}: mountedOn 은 mountOnly 장비에만`);
+    if (!def.mountable && mountedOn) throw new Error(`${where}: mountedOn 은 mountable 장비에만`);
     return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params, ...(mountedOn ? { mountedOn } : {}) };
   });
 

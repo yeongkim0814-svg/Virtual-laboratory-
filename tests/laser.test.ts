@@ -29,7 +29,7 @@ async function make(opts: { cable?: boolean; mains?: boolean; blocker?: boolean;
   let m!: EquipmentManager;
   const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
   m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0, fixtures: outlet,
+    grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountableHitRadiusM: 0, fixtures: outlet,
   });
   // 레이저 (0,0,0) 앞 = +z, 출구 z = 0.1. 스크린 (0,0,1) 을 180° 돌려 앞면(z = 0.99)이 레이저를 봄
   await m.load(parseSetup({
@@ -134,7 +134,7 @@ describe('레이저 → 스크린', () => {
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: furnitureBoxes(lab.furniture), room: lab.room });
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-      grid: { cellSizeM: lab.grid.cellSizeM, surfaces: new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM) }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0,
+      grid: { cellSizeM: lab.grid.cellSizeM, surfaces: new Surfaces(lab.room, lab.furniture, lab.grid.cellSizeM) }, portHitRadiusM: 0, mountableHitRadiusM: 0,
       fixtures: fixtureItems(lab.fixtures, registry.definitions),
     });
     await m.load(parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtureItems(lab.fixtures, registry.definitions)));
@@ -156,7 +156,7 @@ describe('레이저 → 스크린', () => {
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0, fixtures: outlet,
+      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, mountableHitRadiusM: 0, fixtures: outlet,
     });
     await m.load(parseSetup({
       version: 2,
@@ -190,7 +190,7 @@ describe('레이저 → 스크린', () => {
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
     // 이 테스트만 촘촘한 격자(0.001 m) — 0.012 m 같은 값에 클램프를 정확히 놓기 위해(그리드 스냅 방지)
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-      grid: { cellSizeM: 0.001, surfaces: new Surfaces(room, [], 0.001) }, portHitRadiusM: 0, mountOnlyHitRadiusM: 0, fixtures: outlet,
+      grid: { cellSizeM: 0.001, surfaces: new Surfaces(room, [], 0.001) }, portHitRadiusM: 0, mountableHitRadiusM: 0, fixtures: outlet,
     });
     // 슬릿판을 옆으로 0.012 m 비켜 둠(조준 영역 반폭 0.004 밖, 판 반폭 0.022 안)
     await m.load(parseSetup({

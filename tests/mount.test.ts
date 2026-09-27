@@ -1,4 +1,4 @@
-// 클램프(mounts) — mountOnly 장비를 클램프 등에 끼우는 구조. 격자 칸을 새로 차지하지 않고
+// 클램프(mounts) — mountable 장비를 클램프 등에 끼우는 구조. 격자 칸을 새로 차지하지 않고
 // 끼운 장비의 자리(+mounts 자리 offset)를 따른다. 참조·중복 검증(parseSetup)과
 // 자리 계산·집기 규칙(EquipmentManager)을 확인한다.
 import { readFileSync } from 'node:fs';
@@ -22,17 +22,17 @@ const grid = { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) };
 const setupWith = (equipment: object[]) => ({ version: 2, equipment, cables: [] });
 
 describe('parseSetup: mountedOn 검증', () => {
-  it('mountOnly 장비(슬릿)는 mountedOn 없이 못 씀', () => {
+  it('mountable 장비(슬릿)는 mountedOn 없이 면에 그냥 놓을 수도 있다(보관)', () => {
     expect(() => parseSetup(setupWith([{ id: 's', type: 'double-slit', positionM: [0, 0, 0] }]), registry.definitions))
-      .toThrow('mountedOn 필요');
+      .not.toThrow();
   });
-  it('mountOnly 아닌 장비에 mountedOn 을 붙이면 오류', () => {
+  it('mountable 아닌 장비에 mountedOn 을 붙이면 오류', () => {
     expect(() =>
       parseSetup(setupWith([
         { id: 'c', type: 'clamp', positionM: [0, 0, 0] },
         { id: 'p', type: 'power-supply', positionM: [0, 0, 0], mountedOn: { deviceId: 'c', mountId: 'slot' } },
       ]), registry.definitions),
-    ).toThrow('mountedOn 은 mountOnly 장비에만');
+    ).toThrow('mountedOn 은 mountable 장비에만');
   });
   it('없는 장비를 가리키면 오류', () => {
     expect(() =>
@@ -69,7 +69,7 @@ describe('parseSetup: mountedOn 검증', () => {
 describe('EquipmentManager: 클램프에 끼운 장비', () => {
   async function make() {
     let m!: EquipmentManager;
-    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07, mountOnlyHitRadiusM: 0.07 });
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07, mountableHitRadiusM: 0.07 });
     await m.load(parseSetup(setupWith([
       { id: 'c', type: 'clamp', positionM: [0.5, 0, 0.5] },
       { id: 's', type: 'double-slit', positionM: [0, 0, 0], mountedOn: { deviceId: 'c', mountId: 'slot' } },
@@ -119,5 +119,34 @@ describe('EquipmentManager: 클램프에 끼운 장비', () => {
     expect(m.get('s')!.mountedOn).toBeUndefined();
     m.setPose('s', [0.5, 0.08, 0.5], 0, { deviceId: 'c', mountId: 'slot' });
     expect(m.get('s')!.mountedOn).toEqual({ deviceId: 'c', mountId: 'slot' });
+  });
+  it('끼운 채로 클램프 높이(heightM)를 바꾸면 끼운 장비도 새 높이로 따라간다', async () => {
+    const m = await make();
+    m.get('c')!.params.heightM = 0.15;
+    m.update(1 / 60);
+    const [x, y, z] = m.get('s')!.positionM;
+    expect([x, z]).toEqual([0.5, 0.5]);
+    expect(y).toBeCloseTo(0.15);
+    expect(m.get('s')!.object.position.y).toBeCloseTo(0.15);
+  });
+  it('mountable 장비도 mountedOn 없이 면에 그냥 놓을 수 있다(보관)', async () => {
+    let m!: EquipmentManager;
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07, mountableHitRadiusM: 0.07 });
+    await m.load(parseSetup(setupWith([{ id: 's', type: 'double-slit', positionM: [0.5, 0, 0.5] }]), registry.definitions));
+    expect(m.get('s')!.positionM).toEqual([0.5, 0, 0.5]);
+    expect(m.get('s')!.mountedOn).toBeUndefined();
+  });
+});
+
+describe('포트 탭 판정', () => {
+  it('전원선(cord) 포트는 장비 몸체에 탭 판정 구가 없다(탭 대상은 플러그) — LED 몸체 탭이 가려지지 않게', async () => {
+    let m!: EquipmentManager;
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables)), { grid, portHitRadiusM: 0.07, mountableHitRadiusM: 0 });
+    await m.load(parseSetup(setupWith([
+      { id: 'led', type: 'led', positionM: [0.5, 0, 0.5] },
+      { id: 'ps', type: 'power-supply', positionM: [-0.5, 0, -0.5] },
+    ]), registry.definitions));
+    expect(m.get('led')!.portMarkers.get('power')!.children).toHaveLength(0); // cord
+    expect(m.get('ps')!.portMarkers.get('out')!.children).toHaveLength(1); // 소켓: 탭 판정 구 있음
   });
 });

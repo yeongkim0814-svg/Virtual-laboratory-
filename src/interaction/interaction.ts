@@ -12,6 +12,7 @@ import { placementYawRad, withinReach } from '../hand/handMath';
 import { snapAngleDeg, type Vec2 } from '../input/controlMath';
 import type { PlacementPreview } from './placementPreview';
 import type { RotateGizmo } from './rotateGizmo';
+import type { SelectionHighlight } from './selectionHighlight';
 import type { CableLayout } from '../signal/cableLayout';
 
 const DEG = Math.PI / 180;
@@ -49,11 +50,11 @@ const CABLE_REASON_TEXT = {
  * - 빈손: 닿는 거리의 장비를 탭하면 집는다(단, 같은 장비를 두 번(윈도 안) 탭하면 대신 수치 조정 창이 열린다 —
  *   수치가 있는 장비만. 끼운 장비가 있는 클램프는 먼저 그 장비를 빼야 집을 수 있다)
  * - 빈손: 포트를 탭 → 다른 포트를 탭하면 케이블로 잇는다. 케이블이 꽂힌 포트를 탭하면 뽑는다
- * - 들고 있음(mountOnly 아닌 장비): 화면 중앙으로 바라보는 가까운 면(바닥·테이블 윗면·찬장 선반)에
+ * - 들고 있음: 화면 중앙으로 바라보는 가까운 면(바닥·테이블 윗면·찬장 선반)에
  *   배치 미리보기(격자 셀에 맞춤). 탭하면 미리보기 자리에 놓는다.
  *   셀이 겹치거나 면 밖이거나 선반 사이보다 크면 놓지 않는다(찬장은 문 없는 보관함: 선반에 놓고, 선반에서 집어 쓴다)
- * - 들고 있음(mountOnly 장비: 슬릿·LED 등): 바닥·테이블에는 못 놓고, 화면 중앙으로 클램프의 빈 자리를
- *   바라보면 그 자리에 배치 미리보기. 탭하면 끼운다(격자 칸은 새로 차지하지 않음)
+ * - 들고 있음(mountable 장비: 슬릿·LED 등): 화면 중앙으로 클램프의 빈 자리를 바라보면 그 자리에 배치
+ *   미리보기 → 탭하면 끼운다(격자 칸은 새로 차지하지 않음). 빈 자리가 아니면 보통 장비처럼 면에 내려놓는다
  * - 빈손: 놓인 장비를 길게 누른 채 좌우로 밀면 그 자리에서 회전(15° 배수 근처는 붙음), 손을 떼면 끝
  */
 export class Interaction {
@@ -76,7 +77,8 @@ export class Interaction {
     private readonly cfg: LabFile,
     private readonly preview: PlacementPreview,
     private readonly notify: (msg: string) => void,
-    private readonly selectedPortScale: number,
+    /** 케이블을 이으려고 고른 포트 표시(대상의 색·크기를 잠깐 바꿈). */
+    private readonly highlight: SelectionHighlight,
     private readonly cableLayout: CableLayout,
     private readonly gizmo: RotateGizmo,
     /** 전원선 플러그(탭하면 꽂기·뽑기 대상). */
@@ -135,7 +137,8 @@ export class Interaction {
       else this.preview.hide();
       return;
     }
-    this.candidate = held.def.mountOnly ? this.mountCandidate() : this.gazeCandidate(held);
+    // 끼울 수 있는 장비: 클램프 빈 자리를 보고 있으면 끼우기, 아니면 보통 장비처럼 면에 내려놓기
+    this.candidate = (held.def.mountable ? this.mountCandidate() : null) ?? this.gazeCandidate(held);
     if (this.candidate) {
       this.preview.show(held, this.candidate.pose, this.candidate.cells, this.candidate.check.ok);
     } else {
@@ -175,7 +178,7 @@ export class Interaction {
     this.selectPort(null);
     const c = this.candidate;
     if (!c) {
-      this.notify(held.def.mountOnly ? '끼울 클램프의 빈 자리를 바라보세요' : '놓을 곳(가까운 바닥·테이블·선반)을 바라보세요');
+      this.notify(held.def.mountable ? '끼울 클램프의 빈 자리나 놓을 곳을 바라보세요' : '놓을 곳(가까운 바닥·테이블·선반)을 바라보세요');
       return;
     }
     if (!c.check.ok) {
@@ -201,7 +204,8 @@ export class Interaction {
       return;
     }
     if (this.manager.isMounted(inst.id)) {
-      this.notify('먼저 끼운 장비를 빼세요');
+      // 끼운 장비가 있으면 집을 수는 없지만, 두 번 탭(수치 조정 창 — 클램프 높이 등)은 된다
+      this.rememberTap(inst, () => this.notify('먼저 끼운 장비를 빼세요'));
       return;
     }
     if (inst.def.params.length === 0) {
@@ -265,17 +269,29 @@ export class Interaction {
     this.notify('케이블을 이었어요');
   }
 
-  /** 고른 포트에만 표시를 (키워서) 보이고, 이전 것은 숨긴다. 평소 포트 표시는 숨김. */
+  /**
+   * 케이블을 이으려고 고른 포트를 표시한다(null = 해제). 따로 표시 도형을 띄우지 않고 대상을 강조:
+   * 전원선 포트면 그 전선 끝의 플러그(색 + 커졌다 작아지며 들썩), 소켓·출력 포트면 그 장비(색 깜박임).
+   */
   private selectPort(port: PortAddress | null): void {
-    const holder = (p: PortAddress | null) => (p ? this.manager.get(p.deviceId)?.portMarkers.get(p.portId) : undefined);
-    const show = (h: THREE.Object3D | undefined, on: boolean): void => {
-      if (!h) return;
-      h.scale.setScalar(on ? this.selectedPortScale : 1);
-      if (h.userData.marker) (h.userData.marker as THREE.Object3D).visible = on;
-    };
-    show(holder(this.selectedPort), false);
     this.selectedPort = port;
-    show(holder(port), true);
+    if (!port) {
+      this.highlight.set(null);
+      return;
+    }
+    const cord = !!this.manager.get(port.deviceId)?.def.ports.find((p) => p.id === port.portId)?.cord;
+    this.highlight.set(() => {
+      if (!cord) {
+        const inst = this.manager.get(port.deviceId);
+        return inst ? { object: inst.object, move: false } : null;
+      }
+      const plug = this.plugGroup.children.find((h) => {
+        const a = h.userData.port as PortAddress | undefined;
+        return h.visible && a?.deviceId === port.deviceId && a.portId === port.portId;
+      });
+      const model = plug?.children[0];
+      return model ? { object: model, move: true } : null;
+    });
   }
 
   private ndc(p: Vec2): THREE.Vector2 {
@@ -303,7 +319,7 @@ export class Interaction {
   }
 
   /**
-   * mountOnly 장비를 들고 있을 때: 화면 중앙 시선이 클램프 등의 mounts 자리(보이지 않는 탭 대상)에
+   * mountable 장비를 들고 있을 때: 화면 중앙 시선이 클램프 등의 mounts 자리(보이지 않는 탭 대상)에
    * 닿으면 그 자리가 후보(자리가 비었으면 ok, 찼으면 mount-occupied). 격자 셀은 없음(칸을 새로 차지하지 않음).
    */
   private mountCandidate(): Candidate | null {

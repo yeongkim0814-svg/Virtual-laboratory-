@@ -65,7 +65,10 @@
 - `public/assets.json`
   - `assets`: 에셋 이름 → `.glb 경로` 또는 `null`(placeholder)
   - `placeholders`: null 일 때의 외형(색, 두께) / `environment`: 배경색·조명 / `placementPreview`: 배치 미리보기 색·투명도
-  - `wiring`: 케이블 색·굵기, 포트 탭 반경, 고른 포트 확대 배율 / 포트 표시 에셋 = `port-marker` (평소 숨김, 고른 포트에만 표시)
+  - `wiring`: 케이블 색·굵기, 포트 탭 반경, mountable 장비 몸체 탭 반경
+  - `selectionHighlight`: 케이블을 이으려고 고른 포트 표시(SelectionHighlight, 따로 도형 없음). 전원선 포트 →
+    그 플러그가 강조색으로 깜박이며 커졌다 작아지고 들썩임, 소켓·출력 포트 → 그 장비 색만 깜박임(장비 크기·위치를
+    바꾸면 포트가 움직여 케이블 경로가 매 프레임 다시 계산되므로). 재질은 복제해 바꾸고 해제 시 원래대로, 발광 안 씀
 - `public/lab.json` — 방 크기, 가구(furniture: 테이블·찬장 위치·크기), 고정 설비(fixtures: 테이블 콘센트), 격자(cellSizeM), 케이블(최대 길이 등), 플레이어(시작 위치·눈높이·반지름·속도), 카메라, 조작 감도
 - `src/assets/` — AssetRegistry(이름 → Object3D), placeholder 상자(원점=바닥 중앙)
 - `src/room/` — roomLayout(바닥·벽 배치, 벽 충돌; 순수 함수), buildRoom
@@ -137,7 +140,7 @@
   연결 불가 / 연결 중이면 빠짐. 용도: 전원선·센서 연결선(회로 설계용 아님)
 - 전원 코드(장비에 달린 선): Electric 입력 포트에 `cord: { plug: "mains" | "dc" }` → 장비에서 선이 나와
   끝에 플러그(에셋 `plug`)가 달림. 안 꽂혀 있으면 lab.json cable.looseRestM 만큼 바닥면에 늘어져 있음.
-  플러그 탭 = 뽑기/꽂기 시작. 꽂는 곳 = Electric 출력 포트의 `socket` 종류가 같아야 함(plug-kind 오류)
+  플러그 탭 = 뽑기/꽂기 시작(코드 포트는 장비 몸체에 탭 판정 구가 없음 — 몸체 탭은 집기·두 번 탭). 꽂는 곳 = Electric 출력 포트의 `socket` 종류가 같아야 함(plug-kind 오류)
   현재: 테이블 콘센트(socket mains, 220 V) ← 전원 장치 mains 코드, 레이저 mains 코드
   직류 전원 장치(R9 CV/CC, 설정 전압·전류 한계): mains 에 전압이 있을 때만 출력, out(socket dc) 은 추후 LED 등 부하용.
   부하는 `ctx.reply(입력 포트, {thresholdV, seriesOhm})` 로 자기 V–I 특성(구간 선형)을 케이블을 거꾸로 알린다 →
@@ -149,15 +152,17 @@
   레이저 스위치 = wavelengthM: OFF(0) / 650 nm / 532 nm (R2′)
 - 고정 설비(fixtures): lab.json `fixtures`(id·type·위치·회전). 정의에 `"fixed": true` 인 장비만 가능.
   집기·회전 불가, 세팅 저장 제외(꽂힌 케이블은 저장). 세팅 cables 에서 fixture id 로 참조
-- 클램프(실험용 받침): 슬릿·LED 처럼 작은 장비는 바닥·테이블에 직접 못 놓고(`mountOnly: true`) 클램프
+- 클램프(실험용 받침): 슬릿·LED 처럼 작은 장비(`mountable: true`)는 클램프
   (`mounts: [{id, positionM}]`) 등에만 끼운다.
-  - 들고 mountOnly 장비를 화면 중앙으로 클램프의 빈 자리(mounts, 보이지 않는 탭 대상)에 겨누면 배치 후보
+  - 들고 mountable 장비를 화면 중앙으로 클램프의 빈 자리(mounts, 보이지 않는 탭 대상)에 겨누면 배치 후보.
+    빈 자리를 안 보고 있으면 보통 장비처럼 면에 내려놓을 수 있음(보관용 — 광축이 안 맞아 실험엔 끼워서 씀)
     (격자 셀은 없음 — 칸을 새로 차지하지 않는다). 탭하면 끼움. 이미 찼으면 mount-occupied
   - 자리 = 클램프 위치 + mounts.positionM(회전 반영), 장비 자기 회전은 독립(끼운 채로도 길게 누르기 회전 가능
     — R5′ 슬릿을 돌리는 실험 때문에 일부러 클램프 회전과 안 묶음)
-  - 클램프에 뭔가 끼워져 있으면(`manager.isMounted`) 그 클램프는 집을 수 없음("먼저 끼운 장비를 빼세요")
+  - 클램프에 뭔가 끼워져 있으면(`manager.isMounted`) 그 클램프는 집을 수 없음("먼저 끼운 장비를 빼세요") —
+    두 번 탭(수치 조정 창, 높이)은 됨. 끼운 장비는 syncMounts 가 매 프레임 호스트 자리로 옮김(높이를 바꾸면 같이 움직임)
   - 끼운 장비를 집으면(setHeld true) mountedOn 이 곧바로 비워짐(자리가 바로 풀림) — 다시 놓으려면 다시 끼워야 함
-  - 세팅 JSON: mountOnly 장비는 `mountedOn: {deviceId, mountId}` 필수(parseSetup 이 참조·중복 자리 검사).
+  - 세팅 JSON: 끼운 mountable 장비는 `mountedOn: {deviceId, mountId}` (parseSetup 이 참조·중복 자리 검사, mountable 만 가능).
     저장된 positionM 은 무시되고 불러올 때 클램프 자리로 다시 계산(EquipmentManager.validate 2단계: 격자에
     놓이는 장비 → 끼워진 장비 순)
   - 클램프 자신은 물리에 안 들어감(bodyBoxes 의 빛 차단, cableLayout 의 케이블 장애물 모두 제외) — 받침일
@@ -166,13 +171,12 @@
     대신 그 장비의 해당 param(슬라이더, 장비를 놓고 두 번 탭으로 조정) 값을 자리 높이로 씀 — validate()
     2단계·mountCandidate 둘 다 `mountLocalM()` 한 곳에서 계산. `EquipmentManager.syncMounts()`(매 프레임)가
     현재 param 값으로 mounts 탭 판정 자리·모델 세로 비율(object.scale.y = 현재높이/정의높이)을 갱신 —
-    수치 조정 창에서 높이를 바꾸면 바로 보임. 이미 끼운 장비의 세계 좌표는 끼운 순간 값으로 고정(호스트
-    높이를 나중에 바꿔도 따라오지 않음 — 다시 빼서 끼우면 새 높이 반영)
+    수치 조정 창에서 높이를 바꾸면 바로 보임(끼운 장비도 따라감)
   - mounts 자리의 탭 판정 구(`portHitRadiusM`, 비었을 때 겨눠서 끼우는 데 씀)는 자리가 찼으면
     `syncMounts()` 가 scale 을 0 으로 꺼서 탭이 안 걸리게 함 — 안 그러면 이 구가 끼운 장비 자신의(더 작은)
     몸체 탭 판정을 가려 버려 빼고 다시 끼우기가 거의 안 됨(이중 슬릿을 레이저 지름만큼 줄인 뒤 실제로
-    발견된 문제 — 위에서 내려다보면 얇은 판이 거의 안 보이는 각도이기도 해서, mountOnly 장비 몸체에는
-    별도로 더 큰 탭 판정 구(`mountOnlyHitRadiusM`, assets.json)를 항상 달아 둠)
+    발견된 문제 — 위에서 내려다보면 얇은 판이 거의 안 보이는 각도이기도 해서, mountable 장비 몸체에는
+    별도로 더 큰 탭 판정 구(`mountableHitRadiusM`, assets.json)를 항상 달아 둠)
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사
   (원점 = 바닥 중앙, 8,000 삼각형 이하, 빛 출구 = 모델 앞 끝). 물리(빛 차단 상자·격자 발판)는 모델의 실제
