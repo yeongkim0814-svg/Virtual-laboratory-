@@ -45,7 +45,7 @@ describe('장비 등록', () => {
     const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtures);
     const placed = await m.validate(setup);
     // 첫 번째 = 테이블 콘센트(고정 장비)
-    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
+    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
   });
   it('기본 세팅(public/setups/default.json)을 불러올 수 있다(테이블 콘센트 케이블 포함)', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));

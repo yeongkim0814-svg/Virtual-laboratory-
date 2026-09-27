@@ -1,4 +1,5 @@
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
+import type { ReadoutDef } from '../equipment/types';
 import { decimalsForStep, formatValue, toDisplay } from './formatValue';
 
 const READOUT_DECIMALS = 2;
@@ -12,7 +13,7 @@ export class EquipmentPanel {
   private readonly list: HTMLDivElement;
   private readonly detail: HTMLDivElement;
   private selectedId: string | null = null;
-  private readoutEls: { inst: EquipmentInstance; key: string; unit: string; scale: number; el: HTMLElement }[] = [];
+  private readoutEls: { inst: EquipmentInstance; def: ReadoutDef; el: HTMLElement }[] = [];
 
   constructor(
     private readonly manager: EquipmentManager,
@@ -70,9 +71,10 @@ export class EquipmentPanel {
   /** 매 프레임 호출: 패널이 열려 있으면 readout 값만 갱신. */
   tick(): void {
     if (this.root.hidden) return;
-    for (const r of this.readoutEls) {
-      const v = r.inst.readouts[r.key];
-      r.el.textContent = formatValue(v === null ? null : toDisplay(v, r.scale), r.unit, READOUT_DECIMALS);
+    for (const { inst, def, el } of this.readoutEls) {
+      const v = inst.readouts[def.key];
+      const named = v === null ? undefined : def.options?.find((o) => o.value === v);
+      el.textContent = named ? named.label : formatValue(v === null ? null : toDisplay(v, def.displayScale ?? 1), def.unit, READOUT_DECIMALS);
     }
   }
 
@@ -134,7 +136,7 @@ export class EquipmentPanel {
       const row = div('row readout');
       const value = document.createElement('span');
       row.append(`${r.label} `, value);
-      this.readoutEls.push({ inst, key: r.key, unit: r.unit, scale: r.displayScale ?? 1, el: value });
+      this.readoutEls.push({ inst, def: r, el: value });
       rows.push(row);
     }
 

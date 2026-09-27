@@ -2,6 +2,7 @@ import { isChannel } from '../signal/channels';
 import type { EquipmentDefinition } from './types';
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isVec3 = (v: unknown): boolean => Array.isArray(v) && v.length === 3 && v.every(isNum);
 
 /** 장비 정의 JSON 검증. 문제가 있으면 오류 메시지 목록을 돌려준다(없으면 빈 배열). */
 export function validateDefinition(d: EquipmentDefinition): string[] {
@@ -67,6 +68,12 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     else if (!(p.min <= p.default && p.default <= p.max && p.step > 0)) {
       errs.push(`${at}: param ${p.key} 범위 오류 (min ≤ default ≤ max, step > 0)`);
     }
+  }
+  const g = d.glow;
+  if (g !== undefined) {
+    if (!isVec3(g.positionM) || !(isNum(g.fullPowerW) && g.fullPowerW > 0)) errs.push(`${at}: glow 는 positionM(숫자 3개), fullPowerW > 0`);
+    if (!(d.readouts ?? []).some((r) => r.key === g.powerReadout)) errs.push(`${at}: glow.powerReadout ${g.powerReadout} 이 readouts 에 없음`);
+    if (!(d.params ?? []).some((p) => p.key === g.wavelengthParam)) errs.push(`${at}: glow.wavelengthParam ${g.wavelengthParam} 이 params 에 없음`);
   }
   for (const r of d.readouts ?? []) {
     if (typeof r.key !== 'string' || r.key === '') errs.push(`${at}: readout key 없음`);

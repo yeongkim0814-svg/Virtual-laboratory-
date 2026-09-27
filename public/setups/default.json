@@ -1,7 +1,8 @@
 {
   "version": 2,
   "equipment": [
-    { "id": "power-1", "type": "power-supply", "positionM": [-2.3, 0.75, -2.4], "rotationYDeg": 0, "params": { "voltageV": 5 } },
+    { "id": "power-1", "type": "power-supply", "positionM": [-2.3, 0.75, -2.4], "rotationYDeg": 0, "params": { "voltageV": 2.1, "currentLimitA": 0.01 } },
+    { "id": "led-1", "type": "led", "positionM": [-2.05, 0.75, -2.35], "rotationYDeg": 90, "params": {} },
     { "id": "laser-1", "type": "laser", "positionM": [-2.75, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
     { "id": "slit-1", "type": "double-slit", "positionM": [-2.5, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
     { "id": "screen-1", "type": "screen", "positionM": [-1.6, 0.75, -2.6], "rotationYDeg": -90, "params": {} },
@@ -11,6 +12,7 @@
   ],
   "cables": [
     { "from": { "deviceId": "outlet-1", "portId": "socket-1" }, "to": { "deviceId": "power-1", "portId": "mains" } },
-    { "from": { "deviceId": "outlet-1", "portId": "socket-2" }, "to": { "deviceId": "laser-1", "portId": "power" } }
+    { "from": { "deviceId": "outlet-1", "portId": "socket-2" }, "to": { "deviceId": "laser-1", "portId": "power" } },
+    { "from": { "deviceId": "power-1", "portId": "out" }, "to": { "deviceId": "led-1", "portId": "power" } }
   ]
 }

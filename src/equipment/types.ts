@@ -66,6 +66,8 @@ export interface ReadoutDef {
   unit: string;
   /** 화면 표시 배율(ParamDef 와 같음). */
   displayScale?: number;
+  /** 값 대신 보여 줄 이름(상태 표시 등). 예: 0 = 꺼짐, 1 = 켜짐. */
+  options?: { value: number; label: string }[];
 }
 
 /** 장비 정의(JSON). devices/<type>/definition.json */
@@ -81,6 +83,11 @@ export interface EquipmentDefinition {
   hold: { hands: 1 | 2; grips: Vec3[] };
   /** 고정 장비(테이블 콘센트 등): 집거나 돌릴 수 없고 세팅 저장에 들어가지 않는다(lab.json fixtures). */
   fixed?: boolean;
+  /**
+   * 스스로 빛나는 부분(LED 등): assets.json "<asset>-glow" 를 positionM 에 붙이고,
+   * 색 = 파장(wavelengthParam)의 색(R4), 밝기 = readout(powerReadout) / fullPowerW (최대 1).
+   */
+  glow?: { positionM: Vec3; powerReadout: string; wavelengthParam: string; fullPowerW: number };
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];
@@ -95,6 +102,13 @@ export interface BehaviorContext {
   inputs: Readonly<Record<string, readonly Signal[]>>;
   /** 출력 포트로 신호를 내보낸다(채널은 포트 선언을 따른다). */
   emit(portId: string, values: Record<string, number>): void;
+  /**
+   * 부하 → 전원 방향 신호(같은 케이블을 거꾸로). 입력 포트에서 보내면 다음 프레임에 그 케이블의
+   * 출력 포트 쪽 장비가 replies 로 받는다. 예: LED 가 자기 V–I 특성을 전원 장치에 알린다. 케이블 채널만.
+   */
+  reply(inPortId: string, values: Record<string, number>): void;
+  /** 출력 포트 id → 이번 프레임에 그 포트에 연결된 부하가 보낸 reply 들. */
+  replies: Readonly<Record<string, readonly Signal[]>>;
   /** 읽기 전용 값 갱신. null = 표시할 값 없음. */
   setReadout(key: string, value: number | null): void;
 }

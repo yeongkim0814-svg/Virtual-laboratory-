@@ -1,0 +1,22 @@
+{
+  "type": "led",
+  "label": "LED",
+  "asset": "led",
+  "hold": { "hands": 1, "grips": [[0, 0.07, 0]] },
+  "channels": ["Electric"],
+  "ports": [
+    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0.015, -0.03], "cord": { "plug": "dc" } }
+  ],
+  "params": [
+    { "key": "wavelengthM", "label": "LED 색 (바꾸면 새 LED로 교체)", "unit": "nm", "displayScale": 1e9, "default": 6.3e-7,
+      "options": [{ "value": 6.3e-7, "label": "빨강 630" }, { "value": 5.25e-7, "label": "초록 525" }, { "value": 4.7e-7, "label": "파랑 470" }] }
+  ],
+  "readouts": [
+    { "key": "status", "label": "상태", "unit": "", "options": [{ "value": 0, "label": "꺼짐" }, { "value": 1, "label": "켜짐" }, { "value": 2, "label": "탐 (정격 20 mA 초과)" }] },
+    { "key": "thresholdV", "label": "문턱 전압 V_F", "unit": "V" },
+    { "key": "voltageV", "label": "LED 전압", "unit": "V" },
+    { "key": "currentA", "label": "전류", "unit": "mA", "displayScale": 1000 },
+    { "key": "lightPowerW", "label": "빛 출력", "unit": "mW", "displayScale": 1000 }
+  ],
+  "glow": { "positionM": [0, 0.05, 0], "powerReadout": "lightPowerW", "wavelengthParam": "wavelengthM", "fullPowerW": 0.0079 }
+}

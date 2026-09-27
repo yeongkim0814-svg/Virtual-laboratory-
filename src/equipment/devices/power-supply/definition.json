@@ -10,10 +10,10 @@
   ],
   "params": [
     { "key": "voltageV", "label": "설정 전압", "unit": "V", "min": 0, "max": 30, "step": 0.1, "default": 5 },
-    { "key": "currentLimitA", "label": "전류 한계", "unit": "A", "min": 0, "max": 3, "step": 0.01, "default": 1 }
+    { "key": "currentLimitA", "label": "전류 한계", "unit": "mA", "displayScale": 1000, "min": 0, "max": 3, "step": 0.001, "default": 1 }
   ],
   "readouts": [
     { "key": "outputV", "label": "출력 전압", "unit": "V" },
-    { "key": "outputA", "label": "출력 전류", "unit": "A" }
+    { "key": "outputA", "label": "출력 전류", "unit": "mA", "displayScale": 1000 }
   ]
 }

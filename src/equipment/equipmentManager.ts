@@ -75,6 +75,8 @@ export class EquipmentManager {
   readonly instances: EquipmentInstance[] = [];
   cables: Cable[] = [];
   private pending: Emission[] = [];
+  /** 지난 프레임에 입력 포트에서 거꾸로 보낸 신호(BehaviorContext.reply). */
+  private pendingReplies: { deviceId: string; portId: string; signal: Signal }[] = [];
   /** 장비 종류 → 밑넓이·높이(모델에서 한 번 계산). */
   private readonly footprintByType = new Map<
     string,
@@ -104,6 +106,7 @@ export class EquipmentManager {
     this.group.clear();
     this.instances.length = 0;
     this.pending = [];
+    this.pendingReplies = [];
     for (const { item, def, surfaceId } of placed) await this.addInstance(item, def, surfaceId);
     this.cables = setup.cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } }));
   }
@@ -242,11 +245,23 @@ export class EquipmentManager {
     const ports = this.worldPorts();
     const inputsByPort = this.bus.route(this.pending, ports.filter((p) => p.direction === 'in'));
     const next: Emission[] = [];
+    // reply: 입력 포트 → 그 포트에 꽂힌 케이블의 출력 포트(한 프레임 늦게, emit 과 같음)
+    const repliesByPort = new Map<string, Signal[]>();
+    for (const r of this.pendingReplies) {
+      const c = this.cables.find((k) => k.to.deviceId === r.deviceId && k.to.portId === r.portId);
+      if (!c || this.get(c.from.deviceId)?.held) continue;
+      const k = portKey(c.from.deviceId, c.from.portId);
+      repliesByPort.set(k, [...(repliesByPort.get(k) ?? []), r.signal]);
+    }
+    const nextReplies: typeof this.pendingReplies = [];
 
     for (const inst of this.instances) {
       const inputs: Record<string, Signal[]> = {};
+      const replies: Record<string, Signal[]> = {};
       for (const p of inst.def.ports) {
-        if (p.direction === 'in') inputs[p.id] = inputsByPort.get(portKey(inst.id, p.id)) ?? [];
+        const k = portKey(inst.id, p.id);
+        if (p.direction === 'in') inputs[p.id] = inputsByPort.get(k) ?? [];
+        else replies[p.id] = inst.held ? [] : (repliesByPort.get(k) ?? []);
       }
       inst.behavior.update({
         dtS,
@@ -259,6 +274,13 @@ export class EquipmentManager {
           const from = ports.find((p) => p.deviceId === inst.id && p.portId === portId)!;
           next.push({ from, signal: { channel: from.channel, values: { ...values } } });
         },
+        replies,
+        reply: (portId, values) => {
+          const decl = inst.def.ports.find((p) => p.id === portId);
+          if (!decl || decl.direction !== 'in' || decl.channel === 'Light') throw new Error(`${inst.type}: reply 는 케이블 입력 포트에서만 (${portId})`);
+          if (inst.held) return;
+          nextReplies.push({ deviceId: inst.id, portId, signal: { channel: decl.channel, values: { ...values } } });
+        },
         setReadout: (key, value) => {
           if (!(key in inst.readouts)) throw new Error(`${inst.type}: readout ${key} 없음`);
           inst.readouts[key] = value;
@@ -266,6 +288,7 @@ export class EquipmentManager {
       });
     }
     this.pending = next;
+    this.pendingReplies = nextReplies;
   }
 
   // ── 내부 ──

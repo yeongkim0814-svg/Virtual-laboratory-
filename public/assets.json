@@ -14,7 +14,9 @@
     "screen": null,
     "double-slit": null,
     "table-outlet": null,
-    "plug": null
+    "plug": null,
+    "led": null,
+    "led-glow": null
   },
   "placeholders": {
     "floor": {
@@ -76,6 +78,14 @@
     "plug": {
       "color": "#1c1c1c",
       "sizeM": [0.016, 0.016, 0.03]
+    },
+    "led": {
+      "color": "#3e4a52",
+      "sizeM": [0.05, 0.05, 0.06]
+    },
+    "led-glow": {
+      "color": "#e8e6dc",
+      "sizeM": [0.014, 0.018, 0.014]
     }
   },
   "environment": {

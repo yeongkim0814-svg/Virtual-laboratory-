@@ -47,7 +47,7 @@
 - 팔레트: 낡은 황동, 청록 녹청, 따뜻한 짙은 나무, 짙은 철, 포인트 짙은 빨강
 - 모델 규약: 1단위 = 1m, +Y 위, 앞 = +Z, 원점은 바닥 중앙
 - 기능 면(빛 출구·조준 영역·스크린 면)은 평평하고 장식 없이. 전원선·플러그는 모델에 넣지 않음(코드가 생성)
-- 발광(emissive)은 레이저와 결과 무늬에만 사용(코드가 그림 → 모델에는 발광 없음)
+- 발광(emissive)은 레이저·결과 무늬·켜진 LED 에만 사용(코드가 그림 → 모델에는 발광 없음)
 - 그림자/후처리는 기본 OFF (태블릿 30fps 우선)
 - placeholder 도형은 지금처럼 플랫 셰이딩 단색 유지
 
@@ -131,7 +131,11 @@
   플러그 탭 = 뽑기/꽂기 시작. 꽂는 곳 = Electric 출력 포트의 `socket` 종류가 같아야 함(plug-kind 오류)
   현재: 테이블 콘센트(socket mains, 220 V) ← 전원 장치 mains 코드, 레이저 mains 코드
   직류 전원 장치(R9 CV/CC, 설정 전압·전류 한계): mains 에 전압이 있을 때만 출력, out(socket dc) 은 추후 LED 등 부하용.
-  아직 부하가 자기 특성(저항 등)을 알리는 방식이 없어 항상 개방(전류 0 A) — 부하 장비 추가 시 붙일 것
+  부하는 `ctx.reply(입력 포트, {thresholdV, seriesOhm})` 로 자기 V–I 특성(구간 선형)을 케이블을 거꾸로 알린다 →
+  전원 장치는 `ctx.replies.out` 으로 받아 동작점(R9/R10)을 정하고 {voltageV, currentA} 를 내보낸다(한 프레임 늦게)
+- LED(R10): dc 코드, 색 스위치(630/525/470 nm, 바꾸면 새 LED 로 교체), V_F = hc/(eλ), R_D 10 Ω, η 0.2,
+  정격 20 mA 초과 시 탐(끊긴 회로). readout options 로 상태 이름 표시(꺼짐/켜짐/탐)
+- 정의의 `glow`: 스스로 빛나는 부분. assets.json "<asset>-glow" 를 붙이고 색 = 파장 색, 밝기 = √(빛 출력 / fullPowerW)(보기용)
 - params 에 `options: [{value, label}]` 가 있으면 스위치(버튼 묶음) UI. 값은 숫자(SI)로 저장.
   레이저 스위치 = wavelengthM: OFF(0) / 650 nm / 532 nm (R2′)
 - 고정 설비(fixtures): lab.json `fixtures`(id·type·위치·회전). 정의에 `"fixed": true` 인 장비만 가능.
