@@ -11,6 +11,8 @@ const DEG = Math.PI / 180;
 export interface PlacementPose {
   positionM: Vec3;
   yawRad: number;
+  /** 클램프 등에 끼우는 거라면 그 장비·자리(mountOnly 장비만). */
+  mountedOn?: { deviceId: string; mountId: string };
 }
 /** 들고 있는 동안 목표 자세를 따라가는 빠르기(1/s). */
 const HOLD_FOLLOW_PER_S = 20;
@@ -224,7 +226,7 @@ export class Hand {
   }
 
   private finishPlace(inst: EquipmentInstance, pose: PlacementPose): void {
-    this.manager.setPose(inst.id, pose.positionM, pose.yawRad / DEG);
+    this.manager.setPose(inst.id, pose.positionM, pose.yawRad / DEG, pose.mountedOn);
     this.manager.setHeld(inst.id, false);
     this.state = { kind: 'empty' };
   }

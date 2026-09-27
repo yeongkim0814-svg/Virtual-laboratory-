@@ -45,7 +45,10 @@ describe('장비 등록', () => {
     const setup = parseSetup(JSON.parse(readFileSync('public/setups/default.json', 'utf8')), registry.definitions, fixtures);
     const placed = await m.validate(setup);
     // 첫 번째 = 테이블 콘센트(고정 장비)
-    expect(placed.map((p) => p.surfaceId)).toEqual(['table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2']);
+    expect(placed.map((p) => p.surfaceId)).toEqual([
+      'table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'table-1', 'table-1',
+      'cupboard-n/3', 'cupboard-n/3', 'cupboard-w/2',
+    ]);
   });
   it('기본 세팅(public/setups/default.json)을 불러올 수 있다(테이블 콘센트 케이블 포함)', () => {
     const raw = JSON.parse(readFileSync('public/setups/default.json', 'utf8'));
@@ -93,6 +96,16 @@ describe('validateDefinition', () => {
   it('두 손인데 grip 이 1개면 오류', () => {
     const bad = { ...good, hold: { hands: 2 as const, grips: [[0, 0, 0] as [number, number, number]] } };
     expect(validateDefinition(bad).join()).toContain('hold.grips');
+  });
+  it('mounts: 정상 / id 중복 / positionM 오류', () => {
+    const withMounts = (mounts: unknown) => ({ ...good, mounts }) as EquipmentDefinition;
+    expect(validateDefinition(withMounts([{ id: 'slot', positionM: [0, 0.08, 0] }]))).toEqual([]);
+    expect(validateDefinition(withMounts([{ id: 'a', positionM: [0, 0, 0] }, { id: 'a', positionM: [0, 0, 0] }])).join()).toContain('mounts id 중복');
+    expect(validateDefinition(withMounts([{ id: 'a', positionM: [0, 0] }])).join()).toContain('mounts a positionM');
+  });
+  it('mountOnly 와 mounts 를 동시에 가지면 오류', () => {
+    const bad = { ...good, mountOnly: true, mounts: [{ id: 's', positionM: [0, 0, 0] as [number, number, number] }] };
+    expect(validateDefinition(bad).join()).toContain('mountOnly 장비는 mounts');
   });
   it('알 수 없는 채널 이름이면 오류', () => {
     const bad = { ...good, channels: ['Sound'] } as unknown as EquipmentDefinition;

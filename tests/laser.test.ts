@@ -144,11 +144,11 @@ describe('레이저 → 스크린', () => {
     }
     expect(m.get('slit-1')!.readouts.transmittedPowerW).toBeCloseTo(0.00006, 12);
     expect(m.get('screen-1')!.readouts.receivedPowerW).toBeCloseTo(0.00006, 12);
-    // 레이저 출구 x = −2.65 → 슬릿 뒷면 −2.51 (0.14), 슬릿 앞면 −2.49 → 스크린 앞면 −1.61 (L = 0.88)
+    // 레이저 출구 x = −2.65 → 슬릿(클램프 위, 두께 ±0.005) 뒷면 −2.505 (0.145), 앞면 −2.495 → 스크린 앞면 −1.61 (L = 0.885)
     const toSlit = light.beams.find((b) => b.fromDeviceId === 'laser-1')!;
     const toScreen = light.beams.find((b) => b.fromDeviceId === 'slit-1')!;
-    expect(toSlit.trace.tM).toBeCloseTo(0.14, 6);
-    expect(toScreen.trace.tM).toBeCloseTo(0.88, 6);
+    expect(toSlit.trace.tM).toBeCloseTo(0.145, 6);
+    expect(toScreen.trace.tM).toBeCloseTo(0.885, 6);
     expect(toScreen.values.slitSpacingM).toBeCloseTo(0.0001, 12);
     expect(toScreen.target?.deviceId).toBe('screen-1');
   });
@@ -162,7 +162,8 @@ describe('레이저 → 스크린', () => {
       version: 2,
       equipment: [
         { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
-        { id: 'slit', type: 'double-slit', positionM: [0, 0, 0.4], rotationYDeg: 30 },
+        { id: 'clamp', type: 'clamp', positionM: [0, 0, 0.4] },
+        { id: 'slit', type: 'double-slit', positionM: [0, 0, 0.4], rotationYDeg: 30, mountedOn: { deviceId: 'clamp', mountId: 'slot' } },
         { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
       ],
       cables: [laserCable],
@@ -187,15 +188,17 @@ describe('레이저 → 스크린', () => {
   it('슬릿판 조준 영역(2 × 2 cm) 밖에 닿으면 판에 막힌다', async () => {
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
+    // 이 테스트만 촘촘한 격자(0.001 m) — 0.012 m 같은 값에 클램프를 정확히 놓기 위해(그리드 스냅 방지)
     m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
-      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, fixtures: outlet,
+      grid: { cellSizeM: 0.001, surfaces: new Surfaces(room, [], 0.001) }, portHitRadiusM: 0, fixtures: outlet,
     });
-    // 슬릿판을 옆으로 0.05 m 비켜 둠(조준 영역 반폭 0.01 밖, 판 반폭 0.06 안)
+    // 슬릿판을 옆으로 0.012 m 비켜 둠(조준 영역 반폭 0.004 밖, 판 반폭 0.022 안)
     await m.load(parseSetup({
       version: 2,
       equipment: [
         { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
-        { id: 'slit', type: 'double-slit', positionM: [0.05, 0, 0.4] },
+        { id: 'clamp', type: 'clamp', positionM: [0.012, 0, 0.4] },
+        { id: 'slit', type: 'double-slit', positionM: [0.012, 0, 0.4], mountedOn: { deviceId: 'clamp', mountId: 'slot' } },
         { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
       ],
       cables: [laserCable],

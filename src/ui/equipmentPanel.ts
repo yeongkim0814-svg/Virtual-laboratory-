@@ -1,12 +1,10 @@
 import type { EquipmentInstance, EquipmentManager } from '../equipment/equipmentManager';
 import type { ReadoutDef } from '../equipment/types';
-import { decimalsForStep, formatValue, toDisplay } from './formatValue';
-
-const READOUT_DECIMALS = 2;
+import { readoutRow, tickReadout } from './paramControls';
 
 /**
- * 단순 장비 패널. 장비 목록 → 선택한 장비의 params 슬라이더(자동 생성)와 readouts.
- * 세팅 저장(파일 내려받기) / 불러오기(파일 선택) 버튼 포함.
+ * 단순 장비 패널. 장비 목록 → 선택한 장비의 readouts(보기 전용)와 저장/불러오기.
+ * 수치 조정은 여기서 하지 않는다 — 장비를 놓은 뒤 두 번 탭하면 뜨는 조정 창(ParamsPopup)에서 한다.
  */
 export class EquipmentPanel {
   private readonly root: HTMLDivElement;
@@ -71,11 +69,7 @@ export class EquipmentPanel {
   /** 매 프레임 호출: 패널이 열려 있으면 readout 값만 갱신. */
   tick(): void {
     if (this.root.hidden) return;
-    for (const { inst, def, el } of this.readoutEls) {
-      const v = inst.readouts[def.key];
-      const named = v === null ? undefined : def.options?.find((o) => o.value === v);
-      el.textContent = named ? named.label : formatValue(v === null ? null : toDisplay(v, def.displayScale ?? 1), def.unit, READOUT_DECIMALS);
-    }
+    for (const { inst, def, el } of this.readoutEls) tickReadout(inst, def, el);
   }
 
   private renderDetail(): void {
@@ -87,60 +81,15 @@ export class EquipmentPanel {
     }
     const rows: HTMLElement[] = [];
 
-    // params → UI 자동 생성: options 가 있으면 스위치(버튼 묶음), 없으면 슬라이더(표시 단위, 값은 SI 로 저장)
-    for (const p of inst.def.params) {
-      const row = div('row');
-      if (p.options) {
-        const buttons = div('switch');
-        const mark = (): void => {
-          buttons.querySelectorAll('button').forEach((b, i) => b.classList.toggle('selected', p.options[i].value === inst.params[p.key]));
-        };
-        for (const o of p.options) {
-          const b = button(o.label);
-          b.addEventListener('click', () => {
-            inst.params[p.key] = o.value;
-            mark();
-          });
-          buttons.append(b);
-        }
-        mark();
-        row.append(p.label, buttons);
-        rows.push(row);
-        continue;
-      }
-      const label = document.createElement('label');
-      const value = document.createElement('span');
-      const scale = p.displayScale ?? 1;
-      const step = toDisplay(p.step, scale);
-      const decimals = decimalsForStep(step);
-      const slider = document.createElement('input');
-      slider.type = 'range';
-      slider.min = String(toDisplay(p.min, scale));
-      slider.max = String(toDisplay(p.max, scale));
-      slider.step = String(step);
-      slider.value = String(toDisplay(inst.params[p.key], scale));
-      const show = (): void => {
-        value.textContent = formatValue(toDisplay(inst.params[p.key], scale), p.unit, decimals);
-      };
-      slider.addEventListener('input', () => {
-        inst.params[p.key] = Number(slider.value) / scale;
-        show();
-      });
-      show();
-      label.append(p.label, ' ', value);
-      row.append(label, slider);
-      rows.push(row);
-    }
+    if (inst.def.params.length > 0) rows.push(div('row hint', '수치 조정: 장비를 놓고 두 번 탭'));
 
     for (const r of inst.def.readouts) {
-      const row = div('row readout');
-      const value = document.createElement('span');
-      row.append(`${r.label} `, value);
-      this.readoutEls.push({ inst, def: r, el: value });
+      const { row, el } = readoutRow(r);
+      this.readoutEls.push({ inst, def: r, el });
       rows.push(row);
     }
 
-    if (rows.length === 0) rows.push(div('row', '조정할 수치 없음'));
+    if (rows.length === 0) rows.push(div('row', '표시할 값 없음'));
     this.detail.replaceChildren(...rows);
     this.tick();
   }

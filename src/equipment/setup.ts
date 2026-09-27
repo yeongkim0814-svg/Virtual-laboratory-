@@ -13,6 +13,11 @@ export interface SetupItem {
   positionM: Vec3;
   rotationYDeg: number;
   params: Record<string, number>;
+  /**
+   * 클램프 등에 끼워져 있으면: 그 장비 id·mounts id. mountOnly 장비는 반드시 있어야 한다.
+   * 위치는 저장돼도 무시되고, 불러올 때 끼운 장비의 자리로 다시 계산된다(EquipmentManager.validate).
+   */
+  mountedOn?: { deviceId: string; mountId: string };
 }
 
 export interface SetupFile {
@@ -66,10 +71,35 @@ export function parseSetup(
       else if (p.options) params[p.key] = p.options.some((o) => o.value === v) ? v : p.default; // 없는 스위치 값 → 기본값
       else params[p.key] = Math.min(p.max, Math.max(p.min, v));
     }
-    return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params };
+    const rawMounted = (item as { mountedOn?: unknown }).mountedOn;
+    let mountedOn: SetupItem['mountedOn'];
+    if (rawMounted !== undefined) {
+      const mo = rawMounted as Partial<{ deviceId: string; mountId: string }>;
+      if (typeof mo.deviceId !== 'string' || typeof mo.mountId !== 'string') {
+        throw new Error(`${where}: mountedOn 은 { deviceId, mountId }`);
+      }
+      mountedOn = { deviceId: mo.deviceId, mountId: mo.mountId };
+    }
+    if (def.mountOnly && !mountedOn) throw new Error(`${where}: ${def.type} 는 mountedOn 필요(클램프 등에 끼워야 함)`);
+    if (!def.mountOnly && mountedOn) throw new Error(`${where}: mountedOn 은 mountOnly 장비에만`);
+    return { id: e.id, type: def.type, positionM: [...e.positionM], rotationYDeg, params, ...(mountedOn ? { mountedOn } : {}) };
   });
 
   const typeOf = new Map([...fixtures, ...equipment].map((e) => [e.id, e.type]));
+  // mountedOn 이 가리키는 장비·자리가 실제 있는지, 자리 하나를 두 장비가 쓰지 않는지.
+  const claimedMounts = new Set<string>();
+  for (const e of equipment) {
+    if (!e.mountedOn) continue;
+    const hostType = typeOf.get(e.mountedOn.deviceId);
+    if (!hostType) throw new Error(`세팅: ${e.id} 의 mountedOn.deviceId ${e.mountedOn.deviceId} 없음`);
+    const hostDef = definitions.get(hostType)!;
+    if (!hostDef.mounts?.some((m) => m.id === e.mountedOn!.mountId)) {
+      throw new Error(`세팅: ${e.id} 의 mountedOn.mountId ${e.mountedOn.mountId} 가 ${hostType} 에 없음`);
+    }
+    const key = `${e.mountedOn.deviceId}/${e.mountedOn.mountId}`;
+    if (claimedMounts.has(key)) throw new Error(`세팅: mounts 자리 ${key} 를 두 장비가 씀`);
+    claimedMounts.add(key);
+  }
   const portOf = portLookup((id) => typeOf.get(id), definitions);
   const rawCables = r.version === 1 ? [] : r.cables ?? [];
   if (!Array.isArray(rawCables)) throw new Error('세팅: cables 는 배열');
@@ -98,6 +128,7 @@ export function serializeSetup(equipment: readonly SetupItem[], cables: readonly
       positionM: [...e.positionM],
       rotationYDeg: e.rotationYDeg,
       params: { ...e.params },
+      ...(e.mountedOn ? { mountedOn: { ...e.mountedOn } } : {}),
     })),
     cables: cables.map((c) => ({ from: { ...c.from }, to: { ...c.to } })),
   };

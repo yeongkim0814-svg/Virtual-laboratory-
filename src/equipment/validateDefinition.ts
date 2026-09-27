@@ -78,5 +78,15 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
   for (const r of d.readouts ?? []) {
     if (typeof r.key !== 'string' || r.key === '') errs.push(`${at}: readout key 없음`);
   }
+  if (d.mounts !== undefined) {
+    const mountIds = new Set<string>();
+    for (const m of d.mounts) {
+      if (typeof m.id !== 'string' || m.id === '') errs.push(`${at}: mounts 의 id 없음`);
+      else if (mountIds.has(m.id)) errs.push(`${at}: mounts id 중복 ${m.id}`);
+      mountIds.add(m.id);
+      if (!isVec3(m.positionM)) errs.push(`${at}: mounts ${m.id} positionM 오류`);
+    }
+  }
+  if (d.mountOnly && d.mounts?.length) errs.push(`${at}: mountOnly 장비는 mounts 를 가질 수 없음(둘 다는 안 됨)`);
   return errs;
 }

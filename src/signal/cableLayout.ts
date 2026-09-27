@@ -136,6 +136,8 @@ export class CableLayout {
   /**
    * 면마다 장애물: 그 면에 놓인 장비 원 + (바닥이면) 찬장·테이블 다리. 테이블 밑은 지나간다.
    * 가구 사각형은 케이블 반지름만큼 넓혀서 케이블이 옆면에 묻히지 않게 한다.
+   * 클램프 등(mounts 가 있는 장비)은 뺀다 — 안 그러면 거기 끼운 장비(자기와 같은 자리)로 가는
+   * 케이블이 클램프 자신의 원 안(닿을 수 없는 점)에서 끝나 버린다. bodyBoxes(빛)와 같은 이유.
    */
   private planes(): Plane[] {
     const lift = this.cfg.liftM;
@@ -144,7 +146,7 @@ export class CableLayout {
       id: s.id,
       yM: s.yM,
       region: s.rect,
-      circles: this.manager.instances.filter((i) => !i.held && i.surfaceId === s.id).map(bodyOf),
+      circles: this.manager.instances.filter((i) => !i.held && i.surfaceId === s.id && !i.def.mounts?.length).map(bodyOf),
       boxes: s.id === FLOOR ? boxes : [],
       openSides: s.openSides,
     }));

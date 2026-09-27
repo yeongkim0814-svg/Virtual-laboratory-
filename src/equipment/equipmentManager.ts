@@ -23,6 +23,8 @@ export interface EquipmentInstance extends SetupItem {
   object: THREE.Object3D;
   /** 포트 id → 포트 표시(탭 대상). */
   portMarkers: Map<string, THREE.Object3D>;
+  /** mounts id → 탭 대상(들고 있는 mountOnly 장비를 여기 끼운다). */
+  mountMarkers: Map<string, THREE.Object3D>;
   /** 손에 들려 있으면 true. 들린 장비의 포트는 신호 라우팅에서 빠진다(케이블은 꽂힌 채). */
   held: boolean;
   /** 밑넓이 원의 셀 오프셋(중심 셀 기준). 모델이 내접하는 원 → 격자. */
@@ -59,6 +61,20 @@ export function normalizeDeg(deg: number): number {
 export function portAddressOf(obj: THREE.Object3D | null): PortAddress | undefined {
   for (let o = obj; o; o = o.parent) {
     if (o.userData.port) return o.userData.port as PortAddress;
+    if (o.userData.equipmentId !== undefined) return undefined;
+  }
+  return undefined;
+}
+
+export interface MountAddress {
+  deviceId: string;
+  mountId: string;
+}
+
+/** 레이캐스트로 맞은 객체(자식 포함)가 클램프 등의 mounts 자리면 그 주소. */
+export function mountAddressOf(obj: THREE.Object3D | null): MountAddress | undefined {
+  for (let o = obj; o; o = o.parent) {
+    if (o.userData.mount) return o.userData.mount as MountAddress;
     if (o.userData.equipmentId !== undefined) return undefined;
   }
   return undefined;
@@ -114,12 +130,17 @@ export class EquipmentManager {
   /**
    * 세팅을 격자에 맞춰 검사한다(상태는 바꾸지 않음). 위치는 가장 가까운 셀 중심으로 맞춘 값을 돌려준다.
    * 밑넓이가 방 밖에 걸치거나 장비끼리 셀이 겹치면 오류.
+   * mountedOn 이 있는 장비(클램프 등에 끼움)는 격자 칸을 새로 차지하지 않고, 끼운 장비의 자리를 그대로 따른다
+   * (그 장비가 먼저 자리를 잡아야 하므로 2단계: 격자에 놓이는 장비 → 끼워진 장비).
    */
   async validate(setup: SetupFile): Promise<{ item: SetupItem; def: EquipmentDefinition; surfaceId: string }[]> {
     const { cellSizeM, surfaces } = this.grid;
     const occupied = new Map<string, Set<string>>();
-    const out: { item: SetupItem; def: EquipmentDefinition; surfaceId: string }[] = [];
-    for (const item of [...(this.options.fixtures ?? []), ...setup.equipment]) {
+    const all = [...(this.options.fixtures ?? []), ...setup.equipment];
+    const resolved = new Map<string, { item: SetupItem; def: EquipmentDefinition; surfaceId: string }>();
+
+    for (const item of all) {
+      if (item.mountedOn) continue;
       const def = this.registry.definitions.get(item.type)!;
       const { offsets, heightM } = await this.footprintFor(def);
       const [px, py, pz] = item.positionM;
@@ -137,13 +158,29 @@ export class EquipmentManager {
       for (const c of cells) occ.add(cellKey(c));
       const [x, z] = cellToWorld(cell, cellSizeM);
       const y = surfaces.get(surfaceId)!.yM;
-      out.push({
+      resolved.set(item.id, {
         item: { ...item, positionM: [x, y, z], rotationYDeg: normalizeDeg(item.rotationYDeg) },
         def,
         surfaceId,
       });
     }
-    return out;
+
+    for (const item of all) {
+      if (!item.mountedOn) continue;
+      const def = this.registry.definitions.get(item.type)!;
+      const host = resolved.get(item.mountedOn.deviceId);
+      if (!host) throw new Error(`세팅: ${item.id} 이(가) 끼워질 ${item.mountedOn.deviceId} 를 찾을 수 없음`);
+      const mountDef = host.def.mounts?.find((m) => m.id === item.mountedOn!.mountId);
+      if (!mountDef) throw new Error(`세팅: ${item.id} 의 mountedOn.mountId ${item.mountedOn.mountId} 가 ${host.def.type} 에 없음`);
+      const worldPos = localToWorld(mountDef.positionM, host.item.positionM, host.item.rotationYDeg * DEG);
+      resolved.set(item.id, {
+        item: { ...item, positionM: worldPos, rotationYDeg: normalizeDeg(item.rotationYDeg) },
+        def,
+        surfaceId: host.surfaceId,
+      });
+    }
+
+    return all.map((item) => resolved.get(item.id)!);
   }
 
   get(id: string): EquipmentInstance | undefined {
@@ -163,15 +200,30 @@ export class EquipmentManager {
     const inst = this.get(id);
     if (!inst) throw new Error(`장비 없음: ${id}`);
     inst.held = held;
+    if (held) inst.mountedOn = undefined; // 들면 끼운 자리에서 빠짐(다시 놓으려면 다시 끼워야 함)
   }
 
-  /** 놓인 위치·회전 갱신(세팅 저장·포트 계산에 쓰임). 3D 객체 이동은 호출자가 한다. */
-  setPose(id: string, positionM: [number, number, number], rotationYDeg: number): void {
+  /**
+   * 놓인 위치·회전 갱신(세팅 저장·포트 계산에 쓰임). 3D 객체 이동은 호출자가 한다.
+   * mountedOn: 클램프 등에 끼워 놓았으면 그 장비·자리(생략하면 안 끼운 채로 놓임).
+   */
+  setPose(id: string, positionM: [number, number, number], rotationYDeg: number, mountedOn?: { deviceId: string; mountId: string }): void {
     const inst = this.get(id);
     if (!inst) throw new Error(`장비 없음: ${id}`);
     inst.positionM = [...positionM];
     inst.rotationYDeg = normalizeDeg(rotationYDeg);
     inst.surfaceId = this.grid.surfaces.surfaceAt(...inst.positionM) ?? null;
+    inst.mountedOn = mountedOn;
+  }
+
+  /** 이 장비(클램프 등)의 자리 중 하나라도 다른 장비가 끼워져 있으면 true(집기 전에 검사). */
+  isMounted(deviceId: string): boolean {
+    return this.instances.some((i) => i.mountedOn?.deviceId === deviceId);
+  }
+
+  /** 그 장비의 그 자리가 이미 차 있으면 true(끼우기 전에 검사). */
+  isMountSlotOccupied(deviceId: string, mountId: string): boolean {
+    return this.instances.some((i) => i.mountedOn?.deviceId === deviceId && i.mountedOn.mountId === mountId);
   }
 
   /** 이 면에 놓여 있는(들리지 않은) 장비가 차지한 셀들. exceptId 장비는 제외. */
@@ -185,9 +237,13 @@ export class EquipmentManager {
     return out;
   }
 
-  /** 놓여 있는(들리지 않은) 장비 몸체 상자(월드, 모델 경계 상자) — 빛을 막는 것. id = 장비 id. */
+  /**
+   * 놓여 있는(들리지 않은) 장비 몸체 상자(월드, 모델 경계 상자) — 빛을 막는 것. id = 장비 id.
+   * 클램프 등(mounts 가 있는 장비)은 받침일 뿐이므로 뺀다 — 안 그러면 끼운 작은 장비(슬릿 등)보다
+   * 클램프 몸체가 먼저 빛을 막아 버릴 수 있다.
+   */
   bodyBoxes(): OrientedBox[] {
-    return this.instances.filter((i) => !i.held).map((i) => {
+    return this.instances.filter((i) => !i.held && !i.def.mounts?.length).map((i) => {
       const f = this.footprintByType.get(i.type)!;
       const yaw = i.rotationYDeg * DEG;
       const localCenter: [number, number, number] = [0, 1, 2].map((k) => (f.boxMinM[k] + f.boxMaxM[k]) / 2) as [number, number, number];
@@ -236,8 +292,8 @@ export class EquipmentManager {
    * 손에 든 장비는 집기 전에 놓여 있던 자리로 저장된다. 고정 장비(lab.json fixtures)는 빠진다.
    */
   toSetupItems(): SetupItem[] {
-    return this.instances.filter((i) => !i.def.fixed).map(({ id, type, positionM, rotationYDeg, params }) => ({
-      id, type, positionM, rotationYDeg, params,
+    return this.instances.filter((i) => !i.def.fixed).map(({ id, type, positionM, rotationYDeg, params, mountedOn }) => ({
+      id, type, positionM, rotationYDeg, params, ...(mountedOn ? { mountedOn } : {}),
     }));
   }
 
@@ -300,6 +356,7 @@ export class EquipmentManager {
     object.rotation.y = item.rotationYDeg * DEG;
     object.userData.equipmentId = item.id;
     const portMarkers = await this.addPortMarkers(object, item.id, def);
+    const mountMarkers = this.addMountMarkers(object, item.id, def);
     this.group.add(object);
     const readouts: Record<string, number | null> = {};
     for (const r of def.readouts) readouts[r.key] = null;
@@ -311,6 +368,7 @@ export class EquipmentManager {
       readouts,
       object,
       portMarkers,
+      mountMarkers,
       held: false,
       footprintOffsets: offsets,
       footprintRadiusM: radiusM,
@@ -364,6 +422,24 @@ export class EquipmentManager {
       }
       object.add(holder);
       markers.set(p.id, holder);
+    }
+    return markers;
+  }
+
+  /** mounts 자리마다 탭 판정용 보이지 않는 구를 단다(들고 있는 mountOnly 장비를 여기 끼운다). */
+  private addMountMarkers(object: THREE.Object3D, deviceId: string, def: EquipmentDefinition): Map<string, THREE.Object3D> {
+    const markers = new Map<string, THREE.Object3D>();
+    for (const m of def.mounts ?? []) {
+      const holder = new THREE.Group();
+      holder.position.set(...m.positionM);
+      holder.userData.mount = { deviceId, mountId: m.id } satisfies MountAddress;
+      if (this.options.portHitRadiusM > 0) {
+        const hit = new THREE.Mesh(new THREE.SphereGeometry(this.options.portHitRadiusM, 8, 6), new THREE.MeshBasicMaterial());
+        hit.visible = false;
+        holder.add(hit);
+      }
+      object.add(holder);
+      markers.set(m.id, holder);
     }
     return markers;
   }

@@ -149,6 +149,8 @@ export interface LabFile {
     rotateDegPerPx: number;
     rotateSnapStepDeg: number;
     rotateSnapWindowDeg: number;
+    /** 이 시간(s) 안에 같은 장비를 또 탭하면 두 번 탭(수치 조정 창) — 아니면 첫 탭이 집기가 된다. */
+    doubleTapS: number;
   };
   hand: HandConfig;
 }

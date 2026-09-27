@@ -2,9 +2,11 @@
   "version": 2,
   "equipment": [
     { "id": "power-1", "type": "power-supply", "positionM": [-2.3, 0.75, -2.4], "rotationYDeg": 0, "params": { "voltageV": 2.1, "currentLimitA": 0.01 } },
-    { "id": "led-1", "type": "led", "positionM": [-2.05, 0.75, -2.35], "rotationYDeg": 90, "params": {} },
+    { "id": "clamp-2", "type": "clamp", "positionM": [-2.05, 0.75, -2.35], "rotationYDeg": 90, "params": {} },
+    { "id": "led-1", "type": "led", "positionM": [-2.05, 0.75, -2.35], "rotationYDeg": 90, "params": {}, "mountedOn": { "deviceId": "clamp-2", "mountId": "slot" } },
     { "id": "laser-1", "type": "laser", "positionM": [-2.75, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
-    { "id": "slit-1", "type": "double-slit", "positionM": [-2.5, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
+    { "id": "clamp-1", "type": "clamp", "positionM": [-2.5, 0.75, -2.6], "rotationYDeg": 90, "params": {} },
+    { "id": "slit-1", "type": "double-slit", "positionM": [-2.5, 0.75, -2.6], "rotationYDeg": 90, "params": {}, "mountedOn": { "deviceId": "clamp-1", "mountId": "slot" } },
     { "id": "screen-1", "type": "screen", "positionM": [-1.6, 0.75, -2.6], "rotationYDeg": -90, "params": {} },
     { "id": "source-2", "type": "test-source", "positionM": [-4.0, 0.91, -4.75], "rotationYDeg": 0, "params": { "voltageV": 5 } },
     { "id": "probe-2", "type": "test-probe", "positionM": [-3.4, 0.91, -4.75], "rotationYDeg": 0, "params": {} },

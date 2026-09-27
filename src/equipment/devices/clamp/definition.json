@@ -1,0 +1,11 @@
+{
+  "type": "clamp",
+  "label": "실험용 클램프",
+  "asset": "clamp",
+  "hold": { "hands": 1, "grips": [[0, 0.05, 0]] },
+  "channels": [],
+  "ports": [],
+  "params": [],
+  "readouts": [],
+  "mounts": [{ "id": "slot", "positionM": [0, 0.08, 0] }]
+}

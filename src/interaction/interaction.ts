@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { LabFile, Vec3 } from '../config/types';
 import {
-  normalizeDeg, portAddressOf, type EquipmentInstance, type EquipmentManager,
+  mountAddressOf, normalizeDeg, portAddressOf, type EquipmentInstance, type EquipmentManager,
 } from '../equipment/equipmentManager';
 import { addressKey, type PortAddress } from '../signal/cables';
 import {
@@ -17,7 +17,7 @@ import type { CableLayout } from '../signal/cableLayout';
 const DEG = Math.PI / 180;
 const SCREEN_CENTER = new THREE.Vector2(0, 0);
 
-type Check = PlaceCheck | { ok: false; reason: 'too-tall' };
+type Check = PlaceCheck | { ok: false; reason: 'too-tall' | 'mount-occupied' };
 
 interface Candidate {
   pose: PlacementPose;
@@ -29,6 +29,7 @@ const REASON_TEXT = {
   outside: '놓을 수 있는 면(바닥·테이블·선반) 밖으로 나가요',
   overlap: '다른 장비와 겹쳐요',
   'too-tall': '선반 사이에 들어가지 않아요',
+  'mount-occupied': '이미 다른 장비가 끼워져 있어요',
 } as const;
 
 const CABLE_REASON_TEXT = {
@@ -45,11 +46,14 @@ const CABLE_REASON_TEXT = {
 
 /**
  * 탭·시선·버튼 → 손 동작.
- * - 빈손: 닿는 거리의 장비를 탭하면 집는다
+ * - 빈손: 닿는 거리의 장비를 탭하면 집는다(단, 같은 장비를 두 번(윈도 안) 탭하면 대신 수치 조정 창이 열린다 —
+ *   수치가 있는 장비만. 끼운 장비가 있는 클램프는 먼저 그 장비를 빼야 집을 수 있다)
  * - 빈손: 포트를 탭 → 다른 포트를 탭하면 케이블로 잇는다. 케이블이 꽂힌 포트를 탭하면 뽑는다
- * - 들고 있음: 화면 중앙으로 바라보는 가까운 면(바닥·테이블 윗면·찬장 선반)에 배치 미리보기(격자 셀에 맞춤).
- *   탭하면 미리보기 자리에 놓는다. 셀이 겹치거나 면 밖이거나 선반 사이보다 크면 놓지 않는다.
- *   (찬장은 문 없는 보관함: 선반에 놓고, 선반에서 집어 쓴다)
+ * - 들고 있음(mountOnly 아닌 장비): 화면 중앙으로 바라보는 가까운 면(바닥·테이블 윗면·찬장 선반)에
+ *   배치 미리보기(격자 셀에 맞춤). 탭하면 미리보기 자리에 놓는다.
+ *   셀이 겹치거나 면 밖이거나 선반 사이보다 크면 놓지 않는다(찬장은 문 없는 보관함: 선반에 놓고, 선반에서 집어 쓴다)
+ * - 들고 있음(mountOnly 장비: 슬릿·LED 등): 바닥·테이블에는 못 놓고, 화면 중앙으로 클램프의 빈 자리를
+ *   바라보면 그 자리에 배치 미리보기. 탭하면 끼운다(격자 칸은 새로 차지하지 않음)
  * - 빈손: 놓인 장비를 길게 누른 채 좌우로 밀면 그 자리에서 회전(15° 배수 근처는 붙음), 손을 떼면 끝
  */
 export class Interaction {
@@ -59,6 +63,8 @@ export class Interaction {
   private selectedPort: PortAddress | null = null;
   /** 회전 중인 장비와 붙이기 전 누적 각도. */
   private rotating: { inst: EquipmentInstance; rawDeg: number } | null = null;
+  /** 첫 탭 뒤 두 번째 탭(같은 장비)을 기다리는 중 — 오면 수치 조정 창, 시간이 지나면 onTimeout(보통 집기). */
+  private pendingTap: { instId: string; timer: ReturnType<typeof setTimeout>; onTimeout: () => void } | null = null;
 
   constructor(
     private readonly camera: THREE.PerspectiveCamera,
@@ -75,6 +81,8 @@ export class Interaction {
     private readonly gizmo: RotateGizmo,
     /** 전원선 플러그(탭하면 꽂기·뽑기 대상). */
     private readonly plugGroup: THREE.Object3D,
+    /** 장비를 두 번 탭했을 때 여는 수치 조정 창. */
+    private readonly openParams: (inst: EquipmentInstance) => void,
   ) {}
 
   get isRotating(): boolean {
@@ -127,7 +135,7 @@ export class Interaction {
       else this.preview.hide();
       return;
     }
-    this.candidate = this.gazeCandidate(held);
+    this.candidate = held.def.mountOnly ? this.mountCandidate() : this.gazeCandidate(held);
     if (this.candidate) {
       this.preview.show(held, this.candidate.pose, this.candidate.cells, this.candidate.check.ok);
     } else {
@@ -160,18 +168,14 @@ export class Interaction {
       }
       if (!inst) return;
       this.selectPort(null);
-      if (inst.def.fixed) {
-        this.notify('고정된 장비예요');
-        return;
-      }
-      this.hand.pick(inst, this.player.yaw);
+      this.handleBodyTap(inst);
       return;
     }
 
     this.selectPort(null);
     const c = this.candidate;
     if (!c) {
-      this.notify('놓을 곳(가까운 바닥·테이블·선반)을 바라보세요');
+      this.notify(held.def.mountOnly ? '끼울 클램프의 빈 자리를 바라보세요' : '놓을 곳(가까운 바닥·테이블·선반)을 바라보세요');
       return;
     }
     if (!c.check.ok) {
@@ -183,6 +187,54 @@ export class Interaction {
   }
 
   // ── 내부 ──
+
+  /**
+   * 빈손으로 장비 몸체를 탭했을 때: 고정 장비 → 안내만. 자리가 찬 클램프 → 거절.
+   * 그 외엔 두 번 탭(윈도 안, 같은 장비) 판정 — 두 번째 탭이면 수치 조정 창, 아니면(수치가 있을 때만
+   * 기다렸다가) 집는다. 수치가 없는 장비는 바로 집는다.
+   */
+  private handleBodyTap(inst: EquipmentInstance): void {
+    if (this.tryDoubleTap(inst)) return;
+    if (inst.def.fixed) {
+      this.notify('고정된 장비예요');
+      this.rememberTap(inst, () => {}); // 다음 탭이 두 번째 탭인지 판단할 수 있게 기록만
+      return;
+    }
+    if (this.manager.isMounted(inst.id)) {
+      this.notify('먼저 끼운 장비를 빼세요');
+      return;
+    }
+    if (inst.def.params.length === 0) {
+      this.hand.pick(inst, this.player.yaw);
+      return;
+    }
+    this.rememberTap(inst, () => {
+      const fresh = this.manager.get(inst.id);
+      if (fresh && !fresh.held) this.hand.pick(fresh, this.player.yaw);
+    });
+  }
+
+  /** 대기 중인 첫 탭과 같은 장비면 두 번째 탭 → 수치 조정 창을 열고 true. */
+  private tryDoubleTap(inst: EquipmentInstance): boolean {
+    if (this.pendingTap?.instId !== inst.id) return false;
+    clearTimeout(this.pendingTap.timer);
+    this.pendingTap = null;
+    if (inst.def.params.length > 0) this.openParams(inst);
+    return true;
+  }
+
+  /** 첫 탭 기록: 시간 안에 같은 장비를 또 탭하지 않으면 onTimeout 실행(보통 집기). 다른 대기가 있었으면 그건 바로 실행. */
+  private rememberTap(inst: EquipmentInstance, onTimeout: () => void): void {
+    if (this.pendingTap) {
+      clearTimeout(this.pendingTap.timer);
+      this.pendingTap.onTimeout();
+    }
+    const timer = setTimeout(() => {
+      this.pendingTap = null;
+      onTimeout();
+    }, this.cfg.controls.doubleTapS * 1000);
+    this.pendingTap = { instId: inst.id, timer, onTimeout };
+  }
 
 
   /** 포트 탭: 고르기 → 다른 포트면 잇기. 고른 게 없는데 꽂힌 포트면 뽑기. */
@@ -248,6 +300,30 @@ export class Interaction {
     if (!withinReach(this.eye(), hit.point.toArray(), this.cfg.hand.reachM)) return null;
     const yawRad = placementYawRad(this.player.yaw, this.hand.heldYawOffsetRad);
     return this.candidateAt(held, surfaceId, hit.point.x, hit.point.z, yawRad);
+  }
+
+  /**
+   * mountOnly 장비를 들고 있을 때: 화면 중앙 시선이 클램프 등의 mounts 자리(보이지 않는 탭 대상)에
+   * 닿으면 그 자리가 후보(자리가 비었으면 ok, 찼으면 mount-occupied). 격자 셀은 없음(칸을 새로 차지하지 않음).
+   */
+  private mountCandidate(): Candidate | null {
+    this.raycaster.setFromCamera(SCREEN_CENTER, this.camera);
+    const hit = this.raycaster.intersectObject(this.manager.group, true)[0];
+    if (!hit) return null;
+    const mount = mountAddressOf(hit.object);
+    if (!mount) return null;
+    if (!withinReach(this.eye(), hit.point.toArray(), this.cfg.hand.reachM)) return null;
+    const host = this.manager.get(mount.deviceId);
+    const holder = host?.mountMarkers.get(mount.mountId);
+    if (!host || !holder) return null;
+    const positionM = holder.getWorldPosition(new THREE.Vector3()).toArray() as Vec3;
+    const yawRad = placementYawRad(this.player.yaw, this.hand.heldYawOffsetRad);
+    const occupied = this.manager.isMountSlotOccupied(mount.deviceId, mount.mountId);
+    return {
+      pose: { positionM, yawRad, mountedOn: { deviceId: mount.deviceId, mountId: mount.mountId } },
+      cells: [],
+      check: occupied ? { ok: false, reason: 'mount-occupied' } : { ok: true },
+    };
   }
 
   /**

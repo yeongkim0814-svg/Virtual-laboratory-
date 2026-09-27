@@ -2,10 +2,11 @@
   "type": "led",
   "label": "LED",
   "asset": "led",
-  "hold": { "hands": 1, "grips": [[0, 0.07, 0]] },
+  "hold": { "hands": 1, "grips": [[0, 0.03, 0]] },
+  "mountOnly": true,
   "channels": ["Electric"],
   "ports": [
-    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0.015, -0.03], "cord": { "plug": "dc" } }
+    { "id": "power", "channel": "Electric", "direction": "in", "positionM": [0, 0, 0.01], "cord": { "plug": "dc" } }
   ],
   "params": [
     { "key": "wavelengthM", "label": "LED 색 (바꾸면 새 LED로 교체)", "unit": "nm", "displayScale": 1e9, "default": 6.3e-7,
@@ -18,5 +19,5 @@
     { "key": "currentA", "label": "전류", "unit": "mA", "displayScale": 1000 },
     { "key": "lightPowerW", "label": "빛 출력", "unit": "mW", "displayScale": 1000 }
   ],
-  "glow": { "positionM": [0, 0.05, 0], "powerReadout": "lightPowerW", "wavelengthParam": "wavelengthM", "fullPowerW": 0.0079 }
+  "glow": { "positionM": [0, 0.027, 0], "powerReadout": "lightPowerW", "wavelengthParam": "wavelengthM", "fullPowerW": 0.0079 }
 }

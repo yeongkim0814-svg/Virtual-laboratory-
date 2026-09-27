@@ -20,6 +20,7 @@ import { PatternView } from './interaction/patternView';
 import { ScreenOverlay } from './interaction/screenOverlay';
 import { furnitureBoxes } from './room/furnitureParts';
 import { EquipmentPanel } from './ui/equipmentPanel';
+import { ParamsPopup } from './ui/paramsPopup';
 import { Hand } from './hand/hand';
 import { Interaction } from './interaction/interaction';
 import { HoldControls } from './ui/holdControls';
@@ -84,9 +85,10 @@ async function main(): Promise<void> {
   const hand = new Hand(camera, await assets.create('hand-right'), await assets.create('hand-left'), equipment, lab.hand);
   const holdControls = new HoldControls(hand, player);
   const preview = new PlacementPreview(scene, assetsFile.placementPreview, lab.grid.cellSizeM);
+  const paramsPopup = new ParamsPopup();
   const interaction = new Interaction(
     camera, room, equipment, hand, player, lab, preview, (m) => holdControls.notify(m), assetsFile.wiring.selectedPortScale,
-    cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo), cableView.plugGroup,
+    cableLayout, new RotateGizmo(scene, assetsFile.rotateGizmo), cableView.plugGroup, (inst) => paramsPopup.show(inst),
   );
 
   const panel = new EquipmentPanel(equipment, {
@@ -98,6 +100,7 @@ async function main(): Promise<void> {
           const setup = parseSetup(JSON.parse(text), equipmentRegistry.definitions, fixtures);
           await equipment.validate(setup); // 격자 검사 실패 시 여기서 멈춤(손·장비 그대로)
           hand.reset();
+          paramsPopup.hide();
           await equipment.load(setup);
         })
         .then(() => panel.refresh())

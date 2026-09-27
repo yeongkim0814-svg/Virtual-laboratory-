@@ -74,7 +74,8 @@
     "longPressS": 0.5,
     "rotateDegPerPx": 0.5,
     "rotateSnapStepDeg": 15,
-    "rotateSnapWindowDeg": 3
+    "rotateSnapWindowDeg": 3,
+    "doubleTapS": 0.35
   },
   "hand": {
     "rightRestM": [0.26, -0.36, -0.62],

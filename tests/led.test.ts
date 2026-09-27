@@ -65,7 +65,8 @@ async function circuit(voltageV: number, currentLimitA: number) {
     version: 2,
     equipment: [
       { id: 'ps', type: 'power-supply', positionM: [-0.6, 0, 0], params: { voltageV, currentLimitA } },
-      { id: 'led', type: 'led', positionM: [0, 0, 0] },
+      { id: 'clamp', type: 'clamp', positionM: [0, 0, 0] },
+      { id: 'led', type: 'led', positionM: [0, 0, 0], mountedOn: { deviceId: 'clamp', mountId: 'slot' } },
     ],
     cables: [
       { from: { deviceId: 'wall', portId: 'socket-1' }, to: { deviceId: 'ps', portId: 'mains' } },

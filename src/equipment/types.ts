@@ -88,6 +88,17 @@ export interface EquipmentDefinition {
    * 색 = 파장(wavelengthParam)의 색(R4), 밝기 = readout(powerReadout) / fullPowerW (최대 1).
    */
   glow?: { positionM: Vec3; powerReadout: string; wavelengthParam: string; fullPowerW: number };
+  /**
+   * 이 장비가 끼울 수 있는 자리(클램프 등). id 는 이 장비 안에서 서로 달라야 한다.
+   * positionM = 끼운 장비의 원점이 오는 자리(로컬 좌표, 회전 전). 물리(빛 차단 상자)에는 들어가지 않는다
+   * (mounts 가 있는 장비는 받침일 뿐이라고 보고 bodyBoxes 에서 뺌).
+   */
+  mounts?: { id: string; positionM: Vec3 }[];
+  /**
+   * 바닥·테이블·선반에 직접 놓을 수 없고, 클램프 등의 mounts 자리에만 끼울 수 있는 장비(작은 슬릿·LED 등).
+   * 세팅 JSON 에서 이 장비는 반드시 mountedOn 을 갖는다.
+   */
+  mountOnly?: boolean;
   channels: Channel[];
   ports: PortDef[];
   params: ParamDef[];

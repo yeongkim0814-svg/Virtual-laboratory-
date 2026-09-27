@@ -83,10 +83,33 @@ button.selected { background: rgba(255, 255, 255, 0.35); }
 }
 .panel[hidden] { display: none; }
 .panel-actions, .panel-list { display: flex; flex-wrap: wrap; gap: 6px; }
-.panel-detail .row { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
-.panel-detail input[type='range'] { width: 100%; min-height: 44px; }
-.panel-detail .switch { display: flex; gap: 4px; }
-.panel-detail .switch button { flex: 1; min-height: 44px; }
+.panel-detail .row, .params-popup-body .row { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.panel-detail input[type='range'], .params-popup-body input[type='range'] { width: 100%; min-height: 44px; }
+.panel-detail .switch, .params-popup-body .switch { display: flex; gap: 4px; }
+.panel-detail .switch button, .params-popup-body .switch button { flex: 1; min-height: 44px; }
+.panel-detail .hint { color: rgba(255, 255, 255, 0.6); font-size: 13px; }
+
+/* ── 수치 조정 창(장비를 놓고 두 번 탭하면 뜬다, 화면 가운데) ── */
+.params-popup {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  touch-action: pan-y;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.params-popup[hidden] { display: none; }
+.params-popup-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: bold; }
 
 /* ── 안내 메시지 ── */
 .toast {

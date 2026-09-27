@@ -100,7 +100,8 @@
   빛을 지나보내는 장비(슬릿)의 출력은 `continuesFrom: "<입력 id>"` → 입력 면에 닿은 광선을 같은 직선으로 잇는다
   (출발점 = 그 직선이 출력 면과 만나는 점). 장비를 돌려도 빛이 꺾이지 않음(R1).
   params/readouts 의 displayScale: 값은 SI 로 저장, 표시는 × 배율(예: 파장 m → nm 1e9)
-- 광축 높이: 광학 장비의 빛 출구·받는 면 중심은 놓인 면에서 0.10 m
+- 광축 높이: 광학 장비의 빛 출구·받는 면 중심은 놓인 면에서 0.10 m(레이저·스크린은 바닥부터 0.10;
+  슬릿처럼 클램프에 끼우는 장비는 클램프 자리(0.08) + 장비 자기 축(0.02) = 0.10 으로 나눠 맞춤)
 - `src/grid/grid.ts` — 바닥 격자(셀 중심 = k·cellSizeM), 원 밑넓이 셀(원이 조금이라도 들어가는 셀, 보수적), 방 안·겹침 검사(순수 함수)
 - `src/equipment/footprint.ts` — 모델이 내접하는 밑면 원 반지름(모델 꼭짓점 중 수직축에서 가장 먼 수평 거리)
 - `src/hand/` — hand(1인칭 손 뷰모델: 오른손·왼손, 집기·들기·놓기, Minecraft 식 휘두르기, 흔들림), handMath(순수 함수)
@@ -117,7 +118,11 @@
   셀이 안 겹치면 모델끼리도 절대 안 겹친다(원 ⊂ 셀).
   들고 있는 동안 회전 불가 → 놓인 장비를 길게 누른 채(controls.longPressS) 좌우로 밀면 그 자리에서 회전,
   손을 떼면 끝(1° 단위, 15° 배수 ±3° 에 붙음, 회전 고리 = assets.json rotateGizmo). 패널에는 각도 없음
-- `src/ui/equipmentPanel.ts` — 장비 목록, params 슬라이더 자동 생성, readouts 표시, 저장/불러오기
+- `src/ui/equipmentPanel.ts` — 장비 목록·readouts 표시(보기 전용)·저장/불러오기. 수치는 조정하지 않음(아래 참고)
+- `src/ui/paramsPopup.ts` / `src/ui/paramControls.ts` — 장비를 놓은 뒤 두 번 탭하면 뜨는 수치 조정 창(그 장비 하나,
+  화면 가운데). params 슬라이더·스위치 UI는 paramControls 에 있고 패널·팝업이 같이 씀
+  (params 있는 장비를 탭하면 곧바로 집지 않고 controls.doubleTapS 만큼 기다렸다가 두 번째 탭이 없으면 집음.
+  수치 없는 장비·고정 장비는 그대로 즉시 집힘/안내만)
 - `public/setups/default.json` — 시작 시 불러오는 세팅
 
 ### 새 장비 추가 방법 (기존 코드 수정 없음)
@@ -144,7 +149,19 @@
   레이저 스위치 = wavelengthM: OFF(0) / 650 nm / 532 nm (R2′)
 - 고정 설비(fixtures): lab.json `fixtures`(id·type·위치·회전). 정의에 `"fixed": true` 인 장비만 가능.
   집기·회전 불가, 세팅 저장 제외(꽂힌 케이블은 저장). 세팅 cables 에서 fixture id 로 참조
-- 찬장(예정): 장비를 EquipmentManager 에 새로 만든 뒤 `hand.pick()` 을 부르면 손에 들린다
+- 클램프(실험용 받침): 슬릿·LED 처럼 작은 장비는 바닥·테이블에 직접 못 놓고(`mountOnly: true`) 클램프
+  (`mounts: [{id, positionM}]`) 등에만 끼운다.
+  - 들고 mountOnly 장비를 화면 중앙으로 클램프의 빈 자리(mounts, 보이지 않는 탭 대상)에 겨누면 배치 후보
+    (격자 셀은 없음 — 칸을 새로 차지하지 않는다). 탭하면 끼움. 이미 찼으면 mount-occupied
+  - 자리 = 클램프 위치 + mounts.positionM(회전 반영), 장비 자기 회전은 독립(끼운 채로도 길게 누르기 회전 가능
+    — R5′ 슬릿을 돌리는 실험 때문에 일부러 클램프 회전과 안 묶음)
+  - 클램프에 뭔가 끼워져 있으면(`manager.isMounted`) 그 클램프는 집을 수 없음("먼저 끼운 장비를 빼세요")
+  - 끼운 장비를 집으면(setHeld true) mountedOn 이 곧바로 비워짐(자리가 바로 풀림) — 다시 놓으려면 다시 끼워야 함
+  - 세팅 JSON: mountOnly 장비는 `mountedOn: {deviceId, mountId}` 필수(parseSetup 이 참조·중복 자리 검사).
+    저장된 positionM 은 무시되고 불러올 때 클램프 자리로 다시 계산(EquipmentManager.validate 2단계: 격자에
+    놓이는 장비 → 끼워진 장비 순)
+  - 클램프 자신은 물리에 안 들어감(bodyBoxes 의 빛 차단, cableLayout 의 케이블 장애물 모두 제외) — 받침일
+    뿐이라고 봄. 안 그러면 끼운 장비(클램프와 같은 xz)로 가는 빛·케이블이 클램프 몸체에 막혀 버림
 - test-source / test-probe 는 채널 확인용(물리 없음). 실제 장비가 생기면 삭제 가능
 - 모델: `public/models/*.glb` (assets.json 에서 경로로 연결). `tests/models.test.ts` 가 규약 검사
   (원점 = 바닥 중앙, 8,000 삼각형 이하, 빛 출구 = 모델 앞 끝). 물리(빛 차단 상자·격자 발판)는 모델의 실제
@@ -152,11 +169,16 @@
   절대 넘지 않게 만든다(넘으면 기존 세팅의 장비 간격·차단 거리가 달라짐). `tools/models/` = 모델 제작
   스크립트(앱 코드 아님):
   - laser.mjs = 사용자 도면(스팀펑크 레이저)을 단순 부품으로 근사 → `node tools/models/laser.mjs`
-  - glbWriter.mjs: `buildGlb`(구 방식, 재질 여러 개·단색·평면) / `buildTexturedGlb`(새 방식, 재질 1개 +
-    텍스처 1장, smooth 플래그로 부품마다 매끈한 곡면 ↔ 평평한 모서리 선택)
+  - glbWriter.mjs: `buildGlb`(구 방식, 재질 여러 개·단색·평면, laser·clamp 가 씀) / `buildTexturedGlb`
+    (새 방식, 재질 1개 + 텍스처 1장, smooth 플래그로 부품마다 매끈한 곡면 ↔ 평평한 모서리 선택, double-slit 이 씀)
   - atlas.mjs: 손그림 느낌 색상 아틀라스를 절차적으로 그림(그러데이션 + 잡음 + 얼룩, 시드 고정)
   - png.mjs: 외부 이미지 라이브러리 없이 PNG 인코딩(node zlib 만 사용) — 아틀라스를 텍스처로 굽는 데 씀
-  - doubleSlit.mjs = 이중 슬릿판(스타일라이즈드 로우폴리: 베벨 + 매끈한 셰이딩 + 손그림 텍스처) →
-    `node tools/models/doubleSlit.mjs`. 판 두께 ±0.01은 물리 그대로, 장식(리벳·테두리)은 그 안쪽에 파묻음
+  - doubleSlit.mjs = 이중 슬릿판(0.044 × 0.04, 레이저 몸통 지름 정도로 작게 — 클램프에 끼워 쓰므로 자기
+    받침 없음) → `node tools/models/doubleSlit.mjs`. 판 두께 ±0.005 는 물리 그대로, 포트 y = 0.02(판 세로
+    가운데, 클램프 자리 0.08 과 더해 광축 0.10). 장식(리벳·테두리)은 판 두께 안쪽에 파묻음
+  - led.mjs = LED 실제 부품 모양(다리 2 + 몸통 + 둥근 머리, 상자 아님) + led-glow(발광 머리 구슬) →
+    `node tools/models/led.mjs`
+  - clamp.mjs = 실험용 클램프(받침대+기둥+열린 고리, 간단한 도형) → `node tools/models/clamp.mjs`.
+    mounts "slot" = (0, 0.08, 0) — 위 클램프 절 참고
 - 명령: `npm run dev` / `npm test` / `npm run build`
 - 배포: main push → Actions 테스트·빌드 → Pages (https://yeongkim0814-svg.github.io/Virtual-laboratory-/)
