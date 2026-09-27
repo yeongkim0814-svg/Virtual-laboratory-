@@ -356,6 +356,7 @@ export class EquipmentManager {
         worldPosM: localToWorld(p.positionM, inst.positionM, inst.rotationYDeg * DEG),
         ...(p.directionLocal ? { worldDirM: directionToWorld(p.directionLocal, inst.rotationYDeg * DEG) } : {}),
         ...(p.faceSizeM ? { faceSizeM: p.faceSizeM } : {}),
+        ...(p.continuesFrom ? { continuesFrom: p.continuesFrom } : {}),
       })),
     );
   }

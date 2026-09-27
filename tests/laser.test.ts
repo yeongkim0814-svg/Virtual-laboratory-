@@ -152,6 +152,35 @@ describe('레이저 → 스크린', () => {
     expect(toScreen.values.slitSpacingM).toBeCloseTo(0.0001, 12);
     expect(toScreen.target?.deviceId).toBe('screen-1');
   });
+  it('슬릿판을 돌려도(30°) 빛은 꺾이지 않고 같은 직선으로 지나간다(R1)', async () => {
+    let m!: EquipmentManager;
+    const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });
+    m = new EquipmentManager(new THREE.Scene(), registry, assets, new SignalBus(cableRouter(() => m.cables), { Light: light.router }), {
+      grid: { cellSizeM: 0.05, surfaces: new Surfaces(room, [], 0.05) }, portHitRadiusM: 0, fixtures: outlet,
+    });
+    await m.load(parseSetup({
+      version: 2,
+      equipment: [
+        { id: 'laser', type: 'laser', positionM: [0, 0, 0] },
+        { id: 'slit', type: 'double-slit', positionM: [0, 0, 0.4], rotationYDeg: 30 },
+        { id: 'screen', type: 'screen', positionM: [0, 0, 1.2], rotationYDeg: 180 },
+      ],
+      cables: [laserCable],
+    }, registry.definitions, outlet));
+    for (let i = 0; i < 5; i++) {
+      light.beginFrame();
+      m.update(1 / 60);
+    }
+    const out = light.beams.find((b) => b.fromDeviceId === 'slit')!;
+    const dir = out.trace.pointM.map((v, i) => v - out.originM[i]);
+    const len = Math.hypot(...dir);
+    expect(dir[0] / len).toBeCloseTo(0, 9); // 레이저와 같은 +z 방향
+    expect(dir[2] / len).toBeCloseTo(1, 9);
+    expect(out.originM[0]).toBeCloseTo(0, 9); // 레이저 광선과 같은 직선(x = 0, y = 0.1)
+    expect(out.originM[1]).toBeCloseTo(0.1, 9);
+    expect(out.trace.pointM[0]).toBeCloseTo(0, 9);
+    expect(out.target?.deviceId).toBe('screen');
+  });
   it('슬릿판 조준 영역(2 × 2 cm) 밖에 닿으면 판에 막힌다', async () => {
     let m!: EquipmentManager;
     const light = new LightRouter({ bodyBoxes: () => m.bodyBoxes(), furnitureBoxes: [], room });

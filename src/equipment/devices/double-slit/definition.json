@@ -6,7 +6,7 @@
   "channels": ["Light"],
   "ports": [
     { "id": "in", "channel": "Light", "direction": "in", "positionM": [0, 0.1, -0.01], "directionLocal": [0, 0, -1], "faceSizeM": [0.02, 0.02] },
-    { "id": "out", "channel": "Light", "direction": "out", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1] }
+    { "id": "out", "channel": "Light", "direction": "out", "positionM": [0, 0.1, 0.01], "directionLocal": [0, 0, 1], "continuesFrom": "in" }
   ],
   "params": [
     { "key": "slitSpacingM", "label": "슬릿 간격 d", "unit": "mm", "displayScale": 1000, "min": 0.0001, "max": 0.0005, "step": 0.00001, "default": 0.0001 },

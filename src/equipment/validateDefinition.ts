@@ -34,6 +34,12 @@ export function validateDefinition(d: EquipmentDefinition): string[] {
     if (p.socket !== undefined && !(p.channel === 'Electric' && p.direction === 'out' && kinds.includes(p.socket))) {
       errs.push(`${at}: 포트 ${p.id} socket 은 Electric 출력에만, 종류는 mains|dc`);
     }
+    if (p.continuesFrom !== undefined) {
+      const src = (d.ports ?? []).find((q) => q.id === p.continuesFrom);
+      if (!(p.channel === 'Light' && p.direction === 'out' && src?.channel === 'Light' && src.direction === 'in')) {
+        errs.push(`${at}: 포트 ${p.id} continuesFrom 은 Light 출력에만, 같은 장비의 Light 입력 id`);
+      }
+    }
     if (p.channel === 'Light') {
       const dir = p.directionLocal;
       if (!Array.isArray(dir) || dir.length !== 3 || !dir.every(isNum) || Math.abs(Math.hypot(...dir) - 1) > 1e-6) {

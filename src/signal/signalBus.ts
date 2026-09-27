@@ -13,6 +13,8 @@ export interface PortRef {
   worldDirM?: Vec3;
   /** Light 입력만: 받는 면 크기 [가로, 세로]. */
   faceSizeM?: [number, number];
+  /** Light 출력만: 이 입력 포트에 닿은 광선을 이어서 내보낸다(PortDef.continuesFrom). */
+  continuesFrom?: string;
 }
 
 export interface Emission {

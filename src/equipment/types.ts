@@ -17,6 +17,12 @@ export interface PortDef {
   directionLocal?: Vec3;
   /** Light 입력만: 빛을 받는 면 크기 [가로, 세로] (면 중심 = positionM, 가로축 = 로컬 y축 × 법선). */
   faceSizeM?: [number, number];
+  /**
+   * Light 출력만: 같은 장비의 Light 입력 포트 id. 그 면에 닿은 광선을 이어서 내보낸다
+   * (출발점 = 닿은 점, 방향 = 들어온 방향, R1 직진). 슬릿처럼 빛이 "지나가는" 장비용.
+   * 없으면 포트 위치·directionLocal 로 쏜다(레이저처럼 빛을 "만드는" 장비).
+   */
+  continuesFrom?: string;
   /** Light 입력만: 이 면에 닿은 빛(빛 점·간섭 무늬)과 1 mm 눈금을 그린다(스크린). */
   displaysLight?: boolean;
   /**
