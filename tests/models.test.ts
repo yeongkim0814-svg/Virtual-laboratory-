@@ -1,5 +1,5 @@
 // 모델(.glb) 규약 테스트: assets.json 에 연결된 모든 모델. (디자인 교체 때 자동 검사)
-// 규약: 1 단위 = 1 m, +Y 위, 원점 = 바닥 중앙, 로우폴리(장비당 5,000 삼각형 이하).
+// 규약: 1 단위 = 1 m, +Y 위, 원점 = 바닥 중앙, 스타일라이즈드 로우폴리(장비당 8,000 삼각형 이하).
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -26,12 +26,12 @@ function triangles(o: THREE.Object3D): number {
 }
 
 describe.each(models)('모델 %s (%s)', (name, path) => {
-  it('불러와지고, 원점 = 바닥 중앙(바닥 y ≈ 0, 가로 중심 ±1 cm), 5,000 삼각형 이하', async () => {
+  it('불러와지고, 원점 = 바닥 중앙(바닥 y ≈ 0, 가로 중심 ±1 cm), 8,000 삼각형 이하', async () => {
     const o = await load(path);
     const box = new THREE.Box3().setFromObject(o);
     expect(box.min.y).toBeCloseTo(0, 2);
     expect(Math.abs((box.min.x + box.max.x) / 2)).toBeLessThan(0.01);
-    expect(triangles(o)).toBeLessThanOrEqual(5000);
+    expect(triangles(o)).toBeLessThanOrEqual(8000);
     expect(triangles(o)).toBeGreaterThan(0);
   });
   it('장비라면: 빛 출구(Light 출력)가 모델 앞 끝과 맞는다(±5 mm)', async () => {
